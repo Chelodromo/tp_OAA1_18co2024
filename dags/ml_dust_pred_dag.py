@@ -4,10 +4,13 @@ from airflow.operators.python import PythonOperator
 from datetime import datetime
 import pandas as pd
 
+import os
+
 # Ruta al archivo dentro del contenedor
 DATA_PATH = "/opt/airflow/datalake/df_merged.csv"
 backup_path = "/opt/airflow/datalake/df_procesado.json"
 
+output_dir = "/opt/airflow/datalake"
 
 # Función para leer y loguear el head
 def leer_y_loguear():
@@ -66,6 +69,51 @@ def split_dataset():
     print("✅ Split realizado con éxito.")
     print("📊 Tamaño del conjunto de entrenamiento:", len(X_train_svm))
     print("📈 Tamaño del conjunto de prueba:", len(X_test_svm))
+    
+    # Guardar como JSON
+    X_train_svm.to_json(os.path.join(output_dir, "X_train.json"), orient="records")
+    X_test_svm.to_json(os.path.join(output_dir, "X_test.json"), orient="records")
+    y_train_svm.to_json(os.path.join(output_dir, "y_train.json"), orient="records")
+    y_test_svm.to_json(os.path.join(output_dir, "y_test.json"), orient="records")
+
+    print("✅ Split realizado y archivos guardados en /opt/airflow/datalake.")
+    print("📦 Archivos creados: X_train.json, X_test.json, y_train.json, y_test.json")
+
+
+def svm_modeling():
+    import pandas as pd
+    from sklearn.preprocessing import StandardScaler
+    from sklearn.svm import SVC
+    from sklearn.model_selection import cross_val_score
+    from sklearn.metrics import confusion_matrix
+
+    # Cargar los datos desde los JSON
+    path = "/opt/airflow/datalake"
+    X_train_svm = pd.read_json(f"{path}/X_train.json")
+    X_test_svm = pd.read_json(f"{path}/X_test.json")
+    y_train_svm = pd.read_json(f"{path}/y_train.json", typ='series')
+    y_test_svm = pd.read_json(f"{path}/y_test.json", typ='series')
+
+    # Escalar
+    scaler = StandardScaler()
+    X_train_svm = scaler.fit_transform(X_train_svm)
+    X_test_svm = scaler.transform(X_test_svm)
+
+    # Modelo SVM
+    svm_linear = SVC(C=0.001, kernel='linear')
+    svm_linear.fit(X_train_svm, y_train_svm)
+
+    # Validación cruzada
+    scores = cross_val_score(svm_linear, X_train_svm, y_train_svm, cv=5, scoring='accuracy')
+    print("\n🔁 Cross-validation scores:", scores)
+    print("📊 Cross-validation mean accuracy:", scores.mean())
+
+    # Predicciones
+    y_pred_svm = svm_linear.predict(X_test_svm)
+
+    # Matriz de confusión
+    print("\n🔍 Confusion Matrix:")
+    print(confusion_matrix(y_test_svm, y_pred_svm))
 
 
 
@@ -95,6 +143,10 @@ with DAG(
     task_id='split_dataset',
     python_callable=split_dataset
 )
+    svm_modeling_task = PythonOperator(
+    task_id='svm_modeling',
+    python_callable=svm_modeling
+)
 
 
-    descargar_csv >> mostrar_head >> split_dataset_task
+    descargar_csv >> mostrar_head >> split_dataset_task >> svm_modeling_task
