@@ -1,0 +1,128 @@
+[2025-04-05T14:05:23.805+0000] {taskinstance.py:1165} INFO - Dependencies all met for <TaskInstance: descargar_y_ver_dataset.mostrar_head manual__2025-04-05T14:05:17.833097+00:00 [queued]>
+[2025-04-05T14:05:23.809+0000] {taskinstance.py:1165} INFO - Dependencies all met for <TaskInstance: descargar_y_ver_dataset.mostrar_head manual__2025-04-05T14:05:17.833097+00:00 [queued]>
+[2025-04-05T14:05:23.810+0000] {taskinstance.py:1362} INFO - 
+--------------------------------------------------------------------------------
+[2025-04-05T14:05:23.810+0000] {taskinstance.py:1363} INFO - Starting attempt 1 of 1
+[2025-04-05T14:05:23.810+0000] {taskinstance.py:1364} INFO - 
+--------------------------------------------------------------------------------
+[2025-04-05T14:05:23.816+0000] {taskinstance.py:1383} INFO - Executing <Task(PythonOperator): mostrar_head> on 2025-04-05 14:05:17.833097+00:00
+[2025-04-05T14:05:23.819+0000] {standard_task_runner.py:54} INFO - Started process 124 to run task
+[2025-04-05T14:05:23.821+0000] {standard_task_runner.py:82} INFO - Running: ['***', 'tasks', 'run', 'descargar_y_ver_dataset', 'mostrar_head', 'manual__2025-04-05T14:05:17.833097+00:00', '--job-id', '47', '--raw', '--subdir', 'DAGS_FOLDER/ml_dust_pred_dag.py', '--cfg-path', '/tmp/tmpayu7rurk']
+[2025-04-05T14:05:23.821+0000] {standard_task_runner.py:83} INFO - Job 47: Subtask mostrar_head
+[2025-04-05T14:05:23.822+0000] {dagbag.py:525} INFO - Filling up the DagBag from /opt/***/dags/ml_dust_pred_dag.py
+[2025-04-05T14:05:23.954+0000] {task_command.py:384} INFO - Running <TaskInstance: descargar_y_ver_dataset.mostrar_head manual__2025-04-05T14:05:17.833097+00:00 [running]> on host 6d3c9c1b3c45
+[2025-04-05T14:05:23.987+0000] {taskinstance.py:1592} INFO - Exporting the following env vars:
+AIRFLOW_CTX_DAG_OWNER=***
+AIRFLOW_CTX_DAG_ID=descargar_y_ver_dataset
+AIRFLOW_CTX_TASK_ID=mostrar_head
+AIRFLOW_CTX_EXECUTION_DATE=2025-04-05T14:05:17.833097+00:00
+AIRFLOW_CTX_TRY_NUMBER=1
+AIRFLOW_CTX_DAG_RUN_ID=manual__2025-04-05T14:05:17.833097+00:00
+[2025-04-05T14:05:23.996+0000] {logging_mixin.py:117} INFO - 
+🧠 Primeras filas del dataset:
+[2025-04-05T14:05:24.007+0000] {logging_mixin.py:117} INFO -         Date   TempOut  HiTemp  LowTemp  ...  WDir_deg  HWDir_deg  Punto  clase
+0 2008-02-23  9.800000    18.3      2.7  ...      90.0        NaN    20V  False
+1 2008-02-26  8.797872    15.7      3.6  ...      67.5       90.0    20V  False
+2 2008-02-29  7.970455    19.1     -1.5  ...     180.0       90.0    20V  False
+3 2008-03-03  5.885417    13.4     -1.9  ...     112.5      135.0    20V  False
+4 2008-03-06  5.006250    13.4     -2.4  ...     225.0      202.5    20V  False
+
+[5 rows x 37 columns]
+[2025-04-05T14:05:24.013+0000] {logging_mixin.py:117} INFO - <class 'pandas.core.frame.DataFrame'>
+RangeIndex: 3006 entries, 0 to 3005
+Data columns (total 37 columns):
+ #   Column     Non-Null Count  Dtype         
+---  ------     --------------  -----         
+ 0   Date       3006 non-null   datetime64[ns]
+ 1   TempOut    2999 non-null   float64       
+ 2   HiTemp     2999 non-null   float64       
+ 3   LowTemp    2999 non-null   float64       
+ 4   OutHum     2999 non-null   float64       
+ 5   DewPt.     2999 non-null   float64       
+ 6   WSpeed     3006 non-null   float64       
+ 7   WRun       3006 non-null   float64       
+ 8   WHSpeed    3006 non-null   float64       
+ 9   WChill     2999 non-null   float64       
+ 10  HeatIx     2999 non-null   float64       
+ 11  ThwIx      2999 non-null   float64       
+ 12  ThswI      2946 non-null   float64       
+ 13  Bar        3006 non-null   float64       
+ 14  Rain       3006 non-null   float64       
+ 15  SolRate    3006 non-null   float64       
+ 16  SolRad.    2999 non-null   float64       
+ 17  HiSlE      2999 non-null   float64       
+ 18  Rad.       2999 non-null   float64       
+ 19  uvIndex    1041 non-null   float64       
+ 20  uDose      1041 non-null   float64       
+ 21  hiUV       1037 non-null   float64       
+ 22  hetD-D     3006 non-null   float64       
+ 23  colD-D     3006 non-null   float64       
+ 24  inTemp     3006 non-null   float64       
+ 25  inHum      3006 non-null   float64       
+ 26  inDew      3006 non-null   float64       
+ 27  iHeat      3006 non-null   float64       
+ 28  ET         3006 non-null   float64       
+ 29  WSamp      3006 non-null   int64         
+ 30  WTx        3006 non-null   int64         
+ 31  iRecept    3006 non-null   float64       
+ 32  arcInt     3006 non-null   int64         
+ 33  WDir_deg   2636 non-null   float64       
+ 34  HWDir_deg  2624 non-null   float64       
+ 35  Punto      3006 non-null   object        
+ 36  clase      3006 non-null   bool          
+dtypes: bool(1), datetime64[ns](1), float64(31), int64(3), object(1)
+memory usage: 848.5+ KB
+[2025-04-05T14:05:24.013+0000] {logging_mixin.py:117} INFO - None
+[2025-04-05T14:05:24.017+0000] {logging_mixin.py:117} INFO - 
+🧠 Check Nulos:
+[2025-04-05T14:05:24.020+0000] {logging_mixin.py:117} INFO - <class 'pandas.core.frame.DataFrame'>
+RangeIndex: 3006 entries, 0 to 3005
+Data columns (total 37 columns):
+ #   Column     Non-Null Count  Dtype         
+---  ------     --------------  -----         
+ 0   Date       3006 non-null   datetime64[ns]
+ 1   TempOut    3006 non-null   float64       
+ 2   HiTemp     3006 non-null   float64       
+ 3   LowTemp    3006 non-null   float64       
+ 4   OutHum     3006 non-null   float64       
+ 5   DewPt.     3006 non-null   float64       
+ 6   WSpeed     3006 non-null   float64       
+ 7   WRun       3006 non-null   float64       
+ 8   WHSpeed    3006 non-null   float64       
+ 9   WChill     3006 non-null   float64       
+ 10  HeatIx     3006 non-null   float64       
+ 11  ThwIx      3006 non-null   float64       
+ 12  ThswI      3006 non-null   float64       
+ 13  Bar        3006 non-null   float64       
+ 14  Rain       3006 non-null   float64       
+ 15  SolRate    3006 non-null   float64       
+ 16  SolRad.    3006 non-null   float64       
+ 17  HiSlE      3006 non-null   float64       
+ 18  Rad.       3006 non-null   float64       
+ 19  uvIndex    3006 non-null   float64       
+ 20  uDose      3006 non-null   float64       
+ 21  hiUV       3006 non-null   float64       
+ 22  hetD-D     3006 non-null   float64       
+ 23  colD-D     3006 non-null   float64       
+ 24  inTemp     3006 non-null   float64       
+ 25  inHum      3006 non-null   float64       
+ 26  inDew      3006 non-null   float64       
+ 27  iHeat      3006 non-null   float64       
+ 28  ET         3006 non-null   float64       
+ 29  WSamp      3006 non-null   int64         
+ 30  WTx        3006 non-null   int64         
+ 31  iRecept    3006 non-null   float64       
+ 32  arcInt     3006 non-null   int64         
+ 33  WDir_deg   3006 non-null   float64       
+ 34  HWDir_deg  3006 non-null   float64       
+ 35  Punto      3006 non-null   object        
+ 36  clase      3006 non-null   bool          
+dtypes: bool(1), datetime64[ns](1), float64(31), int64(3), object(1)
+memory usage: 848.5+ KB
+[2025-04-05T14:05:24.020+0000] {logging_mixin.py:117} INFO - None
+[2025-04-05T14:05:24.030+0000] {logging_mixin.py:117} INFO - 
+💾 Dataset respaldado como JSON en: /opt/***/datalake/df_procesado.json
+[2025-04-05T14:05:24.030+0000] {python.py:177} INFO - Done. Returned value was: None
+[2025-04-05T14:05:24.036+0000] {taskinstance.py:1406} INFO - Marking task as SUCCESS. dag_id=descargar_y_ver_dataset, task_id=mostrar_head, execution_date=20250405T140517, start_date=20250405T140523, end_date=20250405T140524
+[2025-04-05T14:05:24.085+0000] {local_task_job.py:164} INFO - Task exited with return code 0
+[2025-04-05T14:05:24.102+0000] {local_task_job.py:273} INFO - 1 downstream tasks scheduled from follow-on schedule check
