@@ -1,3 +1,7 @@
 pandas
 ucimlrepo
 scikit-learn
+matplotlib
+numpy
+joblib
+os

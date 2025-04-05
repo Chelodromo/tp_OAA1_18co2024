@@ -1,180 +1,90 @@
-import datetime
-
-import pandas as pd
-
 from airflow import DAG
-from airflow.operators.python_operator import PythonOperator
-from airflow.utils.dates import days_ago
-from sklearn.model_selection import train_test_split
+from airflow.operators.python import PythonOperator
+from datetime import datetime
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.preprocessing import StandardScaler
-from ucimlrepo import fetch_ucirepo
+from sklearn.svm import SVC
+from sklearn.metrics import classification_report, confusion_matrix, ConfusionMatrixDisplay
+import numpy as np
+import joblib
+import os
 
+# Ruta segura dentro del DAG para almacenar datos y resultados
+BASE_PATH = os.path.join(os.path.dirname(__file__), 'output/')
+os.makedirs(BASE_PATH, exist_ok=True)
 
-default_args = {
-    'depends_on_past': False,
-    'schedule_interval': None,
-    'retries': 1,
-    'retry_delay': datetime.timedelta(minutes=5),
-    'dagrun_timeout': datetime.timedelta(minutes=15)
-}
+def cargar_datos():
+    df = pd.read_csv(f'{BASE_PATH}df_merged.csv', parse_dates=['Date'])
+    df.to_pickle(f'{BASE_PATH}df_raw.pkl')
 
-dag = DAG(
-    'etl_without_taskflow',
-    default_args=default_args,
-    description='Proceso ETL de ejemplo sin TaskFlow',
-    schedule_interval=None,
-    start_date=days_ago(2),
-    tags=['ETL']
-)
+def preprocesar_datos():
+    df = pd.read_pickle(f'{BASE_PATH}df_raw.pkl')
 
-def obtain_original_data():
-    """
-    Carga los datos desde de la fuente
-    """
-    # Obtenemos el dataset
-    heart_disease = fetch_ucirepo(id=45)
-    dataframe = heart_disease.data.original
-    # Todos valores mayores a cero es una enfermedad cardiaca
-    dataframe.loc[dataframe["num"] > 0, "num"] = 1
-    path = "./data.csv"
-    dataframe.to_csv(path, index=False)
+    # Crear nueva columna con fecha numérica
+    df['Date_num'] = df['Date'].apply(lambda x: x.timestamp())
 
-    # Enviamos un mensaje para el siguiente nodo
-    return path
+    # Eliminar columnas irrelevantes
+    columnas_a_eliminar = ['Date', 'Punto', 'HiTemp', 'LowTemp', 'WTx', 'SolRate', 'SolRad.', 'arcInt']
+    df.drop(columns=[col for col in columnas_a_eliminar if col in df.columns], inplace=True)
 
+    # Convertir a numérico y eliminar filas no válidas
+    df = df.apply(pd.to_numeric, errors='coerce')
+    df.dropna(inplace=True)
 
-def make_dummies_variables(**kwargs):
-    """
-    Convierte a las variables en Dummies
-    """
-    ti = kwargs['ti']
-    path_input = ti.xcom_pull(task_ids='obtain_original_data')
+    if df.empty:
+        raise ValueError("El DataFrame quedó vacío después del preprocesamiento. Verifica los datos de entrada.")
 
-    a = 0
-    b = 0
+    print(f"[INFO] Filas después del preprocesamiento: {len(df)}")
+    df.to_pickle(f'{BASE_PATH}df_preprocessed.pkl')
 
-    if path_input:
+def dividir_escalar():
+    df = pd.read_pickle(f'{BASE_PATH}df_preprocessed.pkl')
+    X = df.iloc[:, :-1].values
+    y = df.iloc[:, -2].values
+    X_train, X_test, y_train, y_test = train_test_split(X, y, stratify=y, test_size=0.3, random_state=42)
+    scaler = StandardScaler()
+    X_train = scaler.fit_transform(X_train)
+    X_test = scaler.transform(X_test)
+    np.save(f'{BASE_PATH}X_train.npy', X_train)
+    np.save(f'{BASE_PATH}X_test.npy', X_test)
+    np.save(f'{BASE_PATH}y_train.npy', y_train)
+    np.save(f'{BASE_PATH}y_test.npy', y_test)
+    joblib.dump(scaler, f'{BASE_PATH}scaler.pkl')
 
-        # Limpiamos duplicados
-        dataset = pd.read_csv(path_input)
+def entrenar_con_gridsearch():
+    X_train = np.load(f'{BASE_PATH}X_train.npy')
+    y_train = np.load(f'{BASE_PATH}y_train.npy')
 
-        # Y quitamos nulos
-        dataset.drop_duplicates(inplace=True, ignore_index=True)
-        dataset.dropna(inplace=True, ignore_index=True)
+    model = SVC(kernel='rbf')
+    grid = GridSearchCV(model, {"C": [0.001, 0.01, 0.1, 1, 5, 10, 100],
+                                "gamma": [0.5, 1, 2, 3, 4]}, cv=5, scoring='f1')
+    grid.fit(X_train, y_train)
+    joblib.dump(grid.best_estimator_, f'{BASE_PATH}svm_rbf_best.pkl')
 
-        # Forzamos las categorias en las columnas
-        dataset["cp"] = dataset["cp"].astype(int)
-        dataset["restecg"] = dataset["restecg"].astype(int)
-        dataset["slope"] = dataset["slope"].astype(int)
-        dataset["ca"] = dataset["ca"].astype(int)
-        dataset["thal"] = dataset["thal"].astype(int)
+def evaluar_modelo():
+    X_test = np.load(f'{BASE_PATH}X_test.npy')
+    y_test = np.load(f'{BASE_PATH}y_test.npy')
+    model = joblib.load(f'{BASE_PATH}svm_rbf_best.pkl')
 
-        categories_list = ["cp", "restecg", "slope", "ca", "thal"]
-        dataset_with_dummies = pd.get_dummies(data=dataset, columns=categories_list, drop_first=True)
-        dataset_with_dummies.to_csv("./data_clean_dummies.csv", index=False)
+    y_pred = model.predict(X_test)
+    cm = confusion_matrix(y_test, y_pred, labels=model.classes_)
+    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=model.classes_)
+    fig, ax = plt.subplots(figsize=(5,5))
+    ax.grid(False)
+    disp.plot(ax=ax)
+    plt.savefig(f'{BASE_PATH}confusion_matrix.png')
 
-        # Enviamos dos mensajes entre nodo
-        # OBS: Recordad que no se mandan mucha información, solo mensajes de comunicación. Si querés pasar dataset
-        # entre nodos, es mejor guardar en algún lado y pasar el path o similar.
-        a = dataset_with_dummies.shape[0]
-        b = dataset_with_dummies.shape[1]
+with DAG('svm_model_avanzado_dag',
+         start_date=datetime(2024, 1, 1),
+         schedule_interval=None,
+         catchup=False) as dag:
 
-    return {"observations": a, "columns": b}
+    t1 = PythonOperator(task_id='cargar_datos', python_callable=cargar_datos)
+    t2 = PythonOperator(task_id='preprocesar_datos', python_callable=preprocesar_datos)
+    t3 = PythonOperator(task_id='dividir_y_escalar', python_callable=dividir_escalar)
+    t4 = PythonOperator(task_id='entrenar_modelo_gridsearch', python_callable=entrenar_con_gridsearch)
+    t5 = PythonOperator(task_id='evaluar_modelo', python_callable=evaluar_modelo)
 
-
-def split_dataset(**kwargs):
-    """
-    Genera el dataset y obtiene set de testeo y evaluación
-    """
-    ti = kwargs['ti']
-    # Leemos el mensaje del DAG anterior
-    dummies_output = ti.xcom_pull(task_ids='make_dummies_variables')
-
-    dataset = pd.read_csv("./data_clean_dummies.csv")
-
-    if dataset.shape[0] == dummies_output["observations"] and dataset.shape[1] == dummies_output["columns"]:
-
-        X = dataset.drop(columns="num")
-        y = dataset[["num"]]
-
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, stratify=y)
-
-        X_train.to_csv("./X_train.csv", index=False)
-        X_test.to_csv("./X_test.csv", index=False)
-        y_train.to_csv("./y_train.csv", index=False)
-        y_test.to_csv("./y_test.csv", index=False)
-
-def normalize_data():
-    """
-    Estandarizamos los datos
-    """
-    X_train = pd.read_csv("./X_train.csv")
-    X_test = pd.read_csv("./X_test.csv")
-
-    sc_X = StandardScaler(with_mean=True, with_std=True)
-    X_train_arr = sc_X.fit_transform(X_train)
-    X_test_arr = sc_X.transform(X_test)
-
-    X_train = pd.DataFrame(X_train_arr, columns=X_train.columns)
-    X_test = pd.DataFrame(X_test_arr, columns=X_test.columns)
-
-    X_train.to_csv("./X_train.csv", index=False)
-    X_test.to_csv("./X_test.csv", index=False)
-
-def read_train_data():
-    """
-    Leemos los datos de entrenamiento
-    """
-    X_train = pd.read_csv("./X_train.csv")
-    y_train = pd.read_csv("./y_train.csv")
-    print(f"Las X de entrenamiento son {X_train.shape} y las y son {y_train.shape}")
-
-def read_test_data():
-    """
-    Leemos los datos de testeo
-    """
-    X_test = pd.read_csv("./X_test.csv")
-    y_test = pd.read_csv("./y_test.csv")
-    print(f"Las X de testeo son {X_test.shape} y las y son {y_test.shape}")
-
-
-obtain_original_data_operator = PythonOperator(
-    task_id='obtain_original_data',
-    python_callable=obtain_original_data,
-    dag=dag
-)
-
-make_dummies_variables_operator = PythonOperator(
-    task_id='make_dummies_variables',
-    provide_context=True,
-    python_callable=make_dummies_variables,
-    dag=dag
-)
-
-split_dataset_operator = PythonOperator(
-    task_id='split_dataset',
-    provide_context=True,
-    python_callable=split_dataset,
-    dag=dag
-)
-
-normalize_data_operator = PythonOperator(
-    task_id='normalize_data',
-    python_callable=normalize_data,
-    dag=dag
-)
-
-read_train_data_operator = PythonOperator(
-    task_id='read_train_data',
-    python_callable=read_train_data,
-    dag=dag
-)
-
-read_test_data_operator = PythonOperator(
-    task_id='read_test_data',
-    python_callable=read_test_data,
-    dag=dag
-)
-
-obtain_original_data_operator >> make_dummies_variables_operator >> split_dataset_operator >> normalize_data_operator
-normalize_data_operator >> [read_train_data_operator, read_test_data_operator]
+    t1 >> t2 >> t3 >> t4 >> t5
