@@ -80,3 +80,9 @@ docker-compose up -d
 Una vez levantado, accedé a Airflow:
 - [http://localhost:8080](http://localhost:8080)
 - Usuario: `airflow`, Password: `airflow` (según imagen oficial)
+
+## Pasos a Seguir
+   - Lograr respaldar los archivos en el bucket conectado usando S3.hook()
+   - Probar otros modelos
+   - Respaldar en el bucket un modelo en plk
+   - Tomar con una nueva tarea ese modelo creado y probarlo con un set de datos al azar para hacer un predict
