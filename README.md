@@ -23,17 +23,18 @@ Este proyecto orquesta un flujo de procesamiento de datos y entrenamiento de un 
    Escribe un archivo `conexion_exitosa.txt` en el bucket `datalake` para confirmar la conexión.
 
 3. **`descargar_csv`**  
-   Descarga un archivo CSV desde Google Drive a `/opt/airflow/datalake/df_merged.csv`.
+   Descarga un archivo CSV desde Google Drive a `/opt/airflow/datalake/df_merged.csv`. Este es el dataset usado para la prediccion de polvo de la materia AdM 1. 
 
 4. **`mostrar_head`**  
    Lee el CSV con `pandas`, convierte la columna `date` a datetime, elimina columnas no deseadas y guarda un backup en formato JSON.
+   Hace un preproceso de los datos para que queden listos para ingresar el modelo. Respalda el dataset como un JSON.
 
-5. **`split_dataset`**  
+6. **`split_dataset`**  
    - Convierte la columna `Date` a `timestamp`.
    - Elimina columnas no relevantes para el modelo.
-   - Realiza un `train_test_split` y guarda `X_train`, `X_test`, `y_train`, `y_test` como JSON en MinIO.
+   - Realiza un `train_test_split` y guarda `X_train`, `X_test`, `y_train`, `y_test` como JSON en la carpeta local de respaldo.
 
-6. **`svm_modeling`**  
+7. **`svm_modeling`**  
    - Escala los datos con `StandardScaler`.
    - Entrena un `SVC(kernel='linear')`.
    - Hace `cross_val_score` y muestra la matriz de confusión.
