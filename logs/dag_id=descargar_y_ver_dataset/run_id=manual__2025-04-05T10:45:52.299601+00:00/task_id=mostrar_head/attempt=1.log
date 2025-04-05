@@ -1,0 +1,34 @@
+[2025-04-05T10:45:57.762+0000] {taskinstance.py:1165} INFO - Dependencies all met for <TaskInstance: descargar_y_ver_dataset.mostrar_head manual__2025-04-05T10:45:52.299601+00:00 [queued]>
+[2025-04-05T10:45:57.766+0000] {taskinstance.py:1165} INFO - Dependencies all met for <TaskInstance: descargar_y_ver_dataset.mostrar_head manual__2025-04-05T10:45:52.299601+00:00 [queued]>
+[2025-04-05T10:45:57.766+0000] {taskinstance.py:1362} INFO - 
+--------------------------------------------------------------------------------
+[2025-04-05T10:45:57.766+0000] {taskinstance.py:1363} INFO - Starting attempt 1 of 1
+[2025-04-05T10:45:57.766+0000] {taskinstance.py:1364} INFO - 
+--------------------------------------------------------------------------------
+[2025-04-05T10:45:57.771+0000] {taskinstance.py:1383} INFO - Executing <Task(PythonOperator): mostrar_head> on 2025-04-05 10:45:52.299601+00:00
+[2025-04-05T10:45:57.774+0000] {standard_task_runner.py:54} INFO - Started process 350 to run task
+[2025-04-05T10:45:57.776+0000] {standard_task_runner.py:82} INFO - Running: ['***', 'tasks', 'run', 'descargar_y_ver_dataset', 'mostrar_head', 'manual__2025-04-05T10:45:52.299601+00:00', '--job-id', '8', '--raw', '--subdir', 'DAGS_FOLDER/ml_dust_pred_dag.py', '--cfg-path', '/tmp/tmpv4gr8l96']
+[2025-04-05T10:45:57.776+0000] {standard_task_runner.py:83} INFO - Job 8: Subtask mostrar_head
+[2025-04-05T10:45:57.777+0000] {dagbag.py:525} INFO - Filling up the DagBag from /opt/***/dags/ml_dust_pred_dag.py
+[2025-04-05T10:45:57.885+0000] {task_command.py:384} INFO - Running <TaskInstance: descargar_y_ver_dataset.mostrar_head manual__2025-04-05T10:45:52.299601+00:00 [running]> on host 6d3c9c1b3c45
+[2025-04-05T10:45:57.911+0000] {taskinstance.py:1592} INFO - Exporting the following env vars:
+AIRFLOW_CTX_DAG_OWNER=***
+AIRFLOW_CTX_DAG_ID=descargar_y_ver_dataset
+AIRFLOW_CTX_TASK_ID=mostrar_head
+AIRFLOW_CTX_EXECUTION_DATE=2025-04-05T10:45:52.299601+00:00
+AIRFLOW_CTX_TRY_NUMBER=1
+AIRFLOW_CTX_DAG_RUN_ID=manual__2025-04-05T10:45:52.299601+00:00
+[2025-04-05T10:45:57.923+0000] {logging_mixin.py:117} INFO - 
+🧠 Primeras filas del dataset:
+[2025-04-05T10:45:57.935+0000] {logging_mixin.py:117} INFO -          Date   TempOut  HiTemp  LowTemp  ...  HWDir_deg  Punto  Polvo_PM10  clase
+0  2008-02-23  9.800000    18.3      2.7  ...        NaN    20V         5.0  False
+1  2008-02-26  8.797872    15.7      3.6  ...       90.0    20V        33.0  False
+2  2008-02-29  7.970455    19.1     -1.5  ...       90.0    20V        13.0  False
+3  2008-03-03  5.885417    13.4     -1.9  ...      135.0    20V         6.0  False
+4  2008-03-06  5.006250    13.4     -2.4  ...      202.5    20V        38.0  False
+
+[5 rows x 40 columns]
+[2025-04-05T10:45:57.936+0000] {python.py:177} INFO - Done. Returned value was: None
+[2025-04-05T10:45:57.940+0000] {taskinstance.py:1406} INFO - Marking task as SUCCESS. dag_id=descargar_y_ver_dataset, task_id=mostrar_head, execution_date=20250405T104552, start_date=20250405T104557, end_date=20250405T104557
+[2025-04-05T10:45:57.956+0000] {local_task_job.py:164} INFO - Task exited with return code 0
+[2025-04-05T10:45:57.966+0000] {local_task_job.py:273} INFO - 0 downstream tasks scheduled from follow-on schedule check

@@ -1,0 +1,32 @@
+[2025-04-05T11:05:01.299+0000] {taskinstance.py:1165} INFO - Dependencies all met for <TaskInstance: descargar_y_ver_dataset.descargar_csv manual__2025-04-05T11:05:00.962877+00:00 [queued]>
+[2025-04-05T11:05:01.303+0000] {taskinstance.py:1165} INFO - Dependencies all met for <TaskInstance: descargar_y_ver_dataset.descargar_csv manual__2025-04-05T11:05:00.962877+00:00 [queued]>
+[2025-04-05T11:05:01.303+0000] {taskinstance.py:1362} INFO - 
+--------------------------------------------------------------------------------
+[2025-04-05T11:05:01.303+0000] {taskinstance.py:1363} INFO - Starting attempt 1 of 1
+[2025-04-05T11:05:01.304+0000] {taskinstance.py:1364} INFO - 
+--------------------------------------------------------------------------------
+[2025-04-05T11:05:01.309+0000] {taskinstance.py:1383} INFO - Executing <Task(BashOperator): descargar_csv> on 2025-04-05 11:05:00.962877+00:00
+[2025-04-05T11:05:01.312+0000] {standard_task_runner.py:54} INFO - Started process 1374 to run task
+[2025-04-05T11:05:01.314+0000] {standard_task_runner.py:82} INFO - Running: ['***', 'tasks', 'run', 'descargar_y_ver_dataset', 'descargar_csv', 'manual__2025-04-05T11:05:00.962877+00:00', '--job-id', '17', '--raw', '--subdir', 'DAGS_FOLDER/ml_dust_pred_dag.py', '--cfg-path', '/tmp/tmpo0nh73qe']
+[2025-04-05T11:05:01.314+0000] {standard_task_runner.py:83} INFO - Job 17: Subtask descargar_csv
+[2025-04-05T11:05:01.315+0000] {dagbag.py:525} INFO - Filling up the DagBag from /opt/***/dags/ml_dust_pred_dag.py
+[2025-04-05T11:05:01.438+0000] {task_command.py:384} INFO - Running <TaskInstance: descargar_y_ver_dataset.descargar_csv manual__2025-04-05T11:05:00.962877+00:00 [running]> on host 6d3c9c1b3c45
+[2025-04-05T11:05:01.467+0000] {taskinstance.py:1592} INFO - Exporting the following env vars:
+AIRFLOW_CTX_DAG_OWNER=***
+AIRFLOW_CTX_DAG_ID=descargar_y_ver_dataset
+AIRFLOW_CTX_TASK_ID=descargar_csv
+AIRFLOW_CTX_EXECUTION_DATE=2025-04-05T11:05:00.962877+00:00
+AIRFLOW_CTX_TRY_NUMBER=1
+AIRFLOW_CTX_DAG_RUN_ID=manual__2025-04-05T11:05:00.962877+00:00
+[2025-04-05T11:05:01.468+0000] {subprocess.py:63} INFO - Tmp dir root location: 
+ /tmp
+[2025-04-05T11:05:01.468+0000] {subprocess.py:75} INFO - Running command: ['/bin/bash', '-c', "mkdir -p /opt/***/datalake && curl -L -o /opt/***/datalake/df_merged.csv 'https://docs.google.com/uc?export=download&id=1gT8k90Iisd-sZVXWtS6Exl1ZFwwTd_WM'"]
+[2025-04-05T11:05:01.475+0000] {subprocess.py:86} INFO - Output:
+[2025-04-05T11:05:01.480+0000] {subprocess.py:93} INFO -   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+[2025-04-05T11:05:01.480+0000] {subprocess.py:93} INFO -                                  Dload  Upload   Total   Spent    Left  Speed
+[2025-04-05T11:05:01.876+0000] {subprocess.py:93} INFO -   0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+[2025-04-05T11:05:05.008+0000] {subprocess.py:93} INFO -   0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:--  0:00:01 --:--:--     0  0     0    0     0    0     0      0      0 --:--:--  0:00:02 --:--:--     0 96  936k   96  908k    0     0   257k      0  0:00:03  0:00:03 --:--:--  298k100  936k  100  936k    0     0   265k      0  0:00:03  0:00:03 --:--:--  307k
+[2025-04-05T11:05:05.011+0000] {subprocess.py:97} INFO - Command exited with return code 0
+[2025-04-05T11:05:05.033+0000] {taskinstance.py:1406} INFO - Marking task as SUCCESS. dag_id=descargar_y_ver_dataset, task_id=descargar_csv, execution_date=20250405T110500, start_date=20250405T110501, end_date=20250405T110505
+[2025-04-05T11:05:05.078+0000] {local_task_job.py:164} INFO - Task exited with return code 0
+[2025-04-05T11:05:05.092+0000] {local_task_job.py:273} INFO - 1 downstream tasks scheduled from follow-on schedule check
