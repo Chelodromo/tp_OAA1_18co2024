@@ -59,6 +59,8 @@ x-airflow-common:
     AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
     AIRFLOW__API__AUTH_BACKENDS: 'airflow.api.auth.backend.basic_auth'
     _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:- pandas pytest scikit-learn seaborn}
+    # ✅ Conexión automática a MinIO como S3
+    AIRFLOW_CONN_MINIO_S3: s3://minio_admin:minio_admin@minio:9000/?endpoint_url=http%3A%2F%2Fminio%3A9000
   volumes:
     - ./dags:/opt/airflow/dags
     - ./logs:/opt/airflow/logs

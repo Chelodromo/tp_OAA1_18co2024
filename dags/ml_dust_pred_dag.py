@@ -6,6 +6,20 @@ import pandas as pd
 
 import os
 
+## Minio bucket
+from airflow import DAG
+from airflow.operators.python import PythonOperator
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from datetime import datetime
+
+def ejemplo_conexion_s3():
+    hook = S3Hook(aws_conn_id='minio_s3')
+    s3_client = hook.get_conn()
+    s3_client.create_bucket(Bucket='respaldo')
+    s3_client.put_object(Bucket='respaldo', Key='prueba.txt', Body='Desde Airflow por variable de entorno')
+
+
+
 # Ruta al archivo dentro del contenedor
 DATA_PATH = "/opt/airflow/datalake/df_merged.csv"
 backup_path = "/opt/airflow/datalake/df_procesado.json"
@@ -124,6 +138,11 @@ with DAG(
     schedule_interval=None,
     catchup=False
 ) as dag:
+    
+    probar_minio =  PythonOperator(
+        task_id='conectar_minio',
+        python_callable=ejemplo_conexion_s3)
+
 
     descargar_csv = BashOperator(
         task_id='descargar_csv',
@@ -149,4 +168,4 @@ with DAG(
 )
 
 
-    descargar_csv >> mostrar_head >> split_dataset_task >> svm_modeling_task
+    probar_minio >> descargar_csv >> mostrar_head >> split_dataset_task >> svm_modeling_task
