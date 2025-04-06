@@ -2,11 +2,18 @@
 
 Este proyecto orquesta un flujo de procesamiento de datos y entrenamiento de un modelo SVM usando **Apache Airflow**, con almacenamiento de datos en **MinIO (S3 compatible)**. Todo está dockerizado y configurado para correr automáticamente.
 
+## Integrantes
+- a1822 Cristian Patricio Salinas Talamilla
+- a1812 Ezequiel Eduardo Maudet
+- a1811 Marcelo Adrián Más Valdecantos
+- a1806 Lucas Fajardo
+- a1826 Sebastian Carreras
+
 ## 📦 Estructura del Proyecto
 
 ```
 .
-├── dags/                       # DAGs de Airflow
+├── dags/                      # DAGs de Airflow
 ├── scripts/                   # Scripts auxiliares (opcional)
 ├── logs/                      # Carpeta ignorada por Git (Airflow logs)
 ├── datalake/                  # Carpeta local (opcional) para almacenamiento temporal
