@@ -6,6 +6,7 @@ import pandas as pd
 from botocore.exceptions import ClientError
 import os
 
+
 ## Minio bucket
 from airflow import DAG
 from airflow.operators.python import PythonOperator
@@ -115,6 +116,7 @@ def svm_modeling():
     from sklearn.svm import SVC
     from sklearn.model_selection import cross_val_score
     from sklearn.metrics import confusion_matrix
+    import joblib
 
     # Cargar los datos desde los JSON
     path = "/opt/airflow/datalake"
@@ -144,7 +146,8 @@ def svm_modeling():
     print("\n🔍 Confusion Matrix:")
     print(confusion_matrix(y_test_svm, y_pred_svm))
 
-
+    joblib.dump(svm_linear, os.path.join(path, "modelo_svm.pkl"))
+    print("✅ Modelo SVM guardado como modelo_svm.pkl")
 
 # DAG definition
 with DAG(
@@ -183,4 +186,10 @@ with DAG(
 )
 
 
+
+
+
+
     probar_minio >> descargar_csv >> mostrar_head >> split_dataset_task >> svm_modeling_task
+
+
