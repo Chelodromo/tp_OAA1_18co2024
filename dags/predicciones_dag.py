@@ -1,39 +1,50 @@
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from datetime import datetime
-import pandas as pd
-import joblib
 import os
 
-def realizar_predicciones():
-    input_path = "/opt/airflow/datalake/df_nuevo.csv"
-    model_path = "/opt/airflow/datalake/modelo_svm.pkl"
-    output_path = "/opt/airflow/datalake/predicciones.csv"
+def hacer_predicciones():
+    import pandas as pd
+    import joblib
 
-    modelo = joblib.load(model_path)
-    df_nuevo = pd.read_csv(input_path)
+    path = "/opt/airflow/datalake"
+    modelo_path = os.path.join(path, "modelo_svm.pkl")
+    nuevo_csv_path = os.path.join(path, "df_nuevo.csv")
+    predicciones_csv_path = os.path.join(path, "nuevo_predicciones.csv")
 
-    if 'Date' in df_nuevo.columns:
-        df_nuevo['Date_num'] = pd.to_datetime(df_nuevo['Date']).apply(lambda x: x.timestamp())
-        df_nuevo = df_nuevo.drop(columns=['Date'])
+    # Cargar modelo entrenado
+    modelo = joblib.load(modelo_path)
 
-    columnas_a_eliminar = ['Punto', 'HiTemp', 'LowTemp', 'WTx', 'SolRate', 'SolRad.', 'arcInt']
-    df_nuevo = df_nuevo.drop(columns=[col for col in columnas_a_eliminar if col in df_nuevo.columns])
+    # Cargar datos nuevos
+    df_nuevo = pd.read_csv(nuevo_csv_path, parse_dates=['Date'])
 
+    # Procesamiento igual que en entrenamiento
+    if 'date' in df_nuevo.columns:
+        df_nuevo = df_nuevo.rename(columns={'date': 'Date'})
+
+    df_nuevo['Date_num'] = df_nuevo['Date'].apply(lambda x: x.timestamp())
+    df_nuevo['Date_num'] = pd.to_numeric(df_nuevo['Date_num'], errors='coerce')
+
+    columnas_a_eliminar = ['Date', 'Punto', 'HiTemp', 'LowTemp', 'WTx', 'SolRate', 'SolRad.', 'arcInt']
+    df_nuevo = df_nuevo.drop(columns=[c for c in columnas_a_eliminar if c in df_nuevo.columns])
+
+    # Predecir
     predicciones = modelo.predict(df_nuevo)
-    df_nuevo['Prediccion'] = predicciones
+    df_nuevo['prediccion'] = predicciones
 
-    df_nuevo.to_csv(output_path, index=False)
-    print(f"✅ Predicciones guardadas en {output_path}")
+    # Guardar resultado
+    df_nuevo.to_csv(predicciones_csv_path, index=False)
+    print(f"✅ Archivo de predicciones guardado en {predicciones_csv_path}")
 
+# DAG definition
 with DAG(
-    dag_id="predicciones_svm",
+    dag_id="predicciones_dag",
     start_date=datetime(2024, 1, 1),
     schedule_interval=None,
     catchup=False
 ) as dag:
 
-    predicciones_task = PythonOperator(
-        task_id="realizar_predicciones",
-        python_callable=realizar_predicciones
+    prediccion_task = PythonOperator(
+        task_id='realizar_predicciones',
+        python_callable=hacer_predicciones
     )
