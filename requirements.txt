@@ -3,3 +3,8 @@ requests
 SQLAlchemy
 mplfinance
 scikit-learn
+fastapi==0.110.0
+uvicorn==0.29.0
+joblib==1.4.0
+
+dill

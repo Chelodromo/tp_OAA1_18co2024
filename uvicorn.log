@@ -1,0 +1,29 @@
+nohup: ignoring input
+INFO:     Will watch for changes in these directories: ['/home/eze_maudet/tp_OAA1_18co2024']
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [135647] using StatReload
+/home/eze_maudet/.local/lib/python3.9/site-packages/sklearn/base.py:380: InconsistentVersionWarning: Trying to unpickle estimator SVC from version 1.0.2 when using version 1.6.1. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+  warnings.warn(
+INFO:     Started server process [135649]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     201.216.219.216:53526 - "POST /predict HTTP/1.1" 404 Not Found
+/home/eze_maudet/.local/lib/python3.9/site-packages/sklearn/utils/validation.py:2732: UserWarning: X has feature names, but SVC was fitted without feature names
+  warnings.warn(
+INFO:     127.0.0.1:56562 - "POST /predecir HTTP/1.1" 200 OK
+/home/eze_maudet/.local/lib/python3.9/site-packages/sklearn/utils/validation.py:2732: UserWarning: X has feature names, but SVC was fitted without feature names
+  warnings.warn(
+INFO:     127.0.0.1:50520 - "POST /predecir HTTP/1.1" 200 OK
+INFO:     201.216.219.216:53726 - "POST /predict HTTP/1.1" 404 Not Found
+INFO:     201.216.219.216:53654 - "POST /predict HTTP/1.1" 404 Not Found
+INFO:     201.216.219.216:53755 - "GET /predict HTTP/1.1" 404 Not Found
+INFO:     201.216.219.216:53755 - "GET /predic HTTP/1.1" 404 Not Found
+INFO:     201.216.219.216:53755 - "GET /docs HTTP/1.1" 200 OK
+INFO:     201.216.219.216:53755 - "GET /openapi.json HTTP/1.1" 200 OK
+/home/eze_maudet/.local/lib/python3.9/site-packages/sklearn/utils/validation.py:2732: UserWarning: X has feature names, but SVC was fitted without feature names
+  warnings.warn(
+INFO:     201.216.219.216:53626 - "POST /predecir HTTP/1.1" 200 OK
+/home/eze_maudet/.local/lib/python3.9/site-packages/sklearn/utils/validation.py:2732: UserWarning: X has feature names, but SVC was fitted without feature names
+  warnings.warn(
+INFO:     201.216.219.216:36056 - "POST /predecir HTTP/1.1" 200 OK
