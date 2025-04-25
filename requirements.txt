@@ -3,3 +3,4 @@ requests
 SQLAlchemy
 mplfinance
 scikit-learn
+psycopg2~=2.8.6
