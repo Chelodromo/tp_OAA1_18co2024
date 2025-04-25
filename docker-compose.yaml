@@ -93,6 +93,25 @@ services:
       interval: 5s
       retries: 5
     restart: always
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:latest
+    container_name: mlflow_server
+    depends_on:
+      - postgres
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./mlruns:/mlflow/mlruns
+    command: >
+      mlflow server 
+      --backend-store-uri postgresql://airflow:airflow@postgres:5432/mlflow_db 
+      --default-artifact-root /mlflow/mlruns 
+      --host 0.0.0.0 
+      --port 5000
+    environment:
+      - MLFLOW_TRACKING_URI=http://localhost:5000
+    networks:
+      - default
 
   redis:
     image: redis:latest
@@ -300,3 +319,4 @@ services:
 volumes:
   postgres-db-volume:
   minio_data:
+  
