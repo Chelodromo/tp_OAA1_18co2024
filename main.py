@@ -3,11 +3,38 @@ from pydantic import BaseModel
 from typing import List
 import pandas as pd
 import joblib
+import io
+import boto3  #  usamos boto3 directo para conectar a MinIO
 
-# Cargar el modelo desde la carpeta datalake
-modelo = joblib.load("datalake/modelo_svm.pkl")
+# Conectarse a MinIO y cargar modelo ---
 
-# Inicializar FastAPI
+# Parámetros de conexión (ajustalos a tus valores reales si cambia algo)
+minio_endpoint = "localhost:9000"  # o IP:puerto de tu MinIO
+minio_access_key = "minioadmin"    # usuario
+minio_secret_key = "minioadmin"    # contraseña
+bucket_name = "respaldo"
+modelo_key = "modelos/modelo_svm.pkl"
+
+# Conexión boto3
+s3_client = boto3.client(
+    's3',
+    endpoint_url=f"http://{minio_endpoint}",
+    aws_access_key_id=minio_access_key,
+    aws_secret_access_key=minio_secret_key,
+    region_name="us-east-1",  # No importa la región en MinIO pero es requerido
+)
+
+# Descargar el modelo
+response = s3_client.get_object(Bucket=bucket_name, Key=modelo_key)
+modelo_bytes = response['Body'].read()
+
+# Cargar modelo desde memoria
+buffer = io.BytesIO(modelo_bytes)
+modelo = joblib.load(buffer)
+
+print("✅ Modelo cargado exitosamente desde MinIO para FastAPI.")
+
+#  Inicializar FastAPI
 app = FastAPI()
 
 # Definir estructura de entrada para un solo registro
