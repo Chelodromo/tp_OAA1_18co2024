@@ -8,8 +8,8 @@ import pandas as pd
 
 #  Configuración fija para MinIO
 minio_endpoint = "localhost:9000"
-minio_access_key = "minioadmin"
-minio_secret_key = "minioadmin"
+minio_access_key = "minio_admin"
+minio_secret_key = "minio_admin"
 bucket_name = "respaldo"
 modelo_key = "modelos/modelo_svm.pkl"
 
