@@ -7,9 +7,9 @@ from typing import List
 import pandas as pd
 
 #  Configuración fija para MinIO
-minio_endpoint = "localhost:9000"
-minio_access_key = "minio_admin"
-minio_secret_key = "minio_admin"
+minio_endpoint = os.getenv("MINIO_ENDPOINT", "localhost:9000")
+minio_access_key = os.getenv("MINIO_ACCESS_KEY", "minio_admin")
+minio_secret_key = os.getenv("MINIO_SECRET_KEY", "minio_admin")
 bucket_name = "respaldo"
 modelo_key = "modelos/modelo_svm.pkl"
 
