@@ -296,6 +296,24 @@ services:
     command: server /data --console-address ":9001"
     volumes:
       - minio_data:/data
+      
+  # Agrego Fastapi
+  fastapi:
+    build:
+      context: .
+      dockerfile: Dockerfile.fastapi
+    container_name: fastapi
+    ports:
+      - "8000:8000"
+    depends_on:
+      - minio
+    environment:
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: minio_admin
+      MINIO_SECRET_KEY: minio_admin
+    volumes:
+      - ./datalake:/opt/airflow/datalake
+
 
 volumes:
   postgres-db-volume:
