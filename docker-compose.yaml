@@ -301,7 +301,7 @@ services:
   fastapi:
     build:
       context: .
-      dockerfile: Dockerfile.fastapi
+      dockerfile: dockerfile.fastapi
     container_name: fastapi
     ports:
       - "8000:8000"
@@ -309,10 +309,9 @@ services:
       - minio
     environment:
       MINIO_ENDPOINT: minio:9000
-      MINIO_ACCESS_KEY: minio_admin
-      MINIO_SECRET_KEY: minio_admin
-    volumes:
-      - ./datalake:/opt/airflow/datalake
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+
 
 
 volumes:
