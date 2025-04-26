@@ -12,8 +12,13 @@ from airflow.operators.python import PythonOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from datetime import datetime
 
+import tempfile
+import requests
+import os
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+
 def ejemplo_conexion_s3():
-    bucket_name = 'respaldo'
+    bucket_name = 'respaldo2'
     hook = S3Hook(aws_conn_id='minio_s3')
     s3_client = hook.get_conn()
     # Verificar si el bucket ya existe
@@ -145,6 +150,37 @@ def svm_modeling():
     print(confusion_matrix(y_test_svm, y_pred_svm))
 
 
+def descargar_dataset(**kwargs):
+    # URL del archivo a descargar
+    url = 'https://docs.google.com/uc?export=download&id=1gT8k90Iisd-sZVXWtS6Exl1ZFwwTd_WM'
+    nombre_archivo_local = 'dataset.csv'
+    bucket_name = 'respaldo2'
+    s3_key = 'dataset.csv'  # Nombre que tendrá en MinIO
+
+    # Crear directorio temporal
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        local_path = os.path.join(tmpdirname, nombre_archivo_local)
+
+        # Descargar archivo
+        print(f"📥 Descargando archivo desde {url}...")
+        response = requests.get(url)
+        response.raise_for_status()  # Levanta error si falla
+        with open(local_path, 'wb') as f:
+            f.write(response.content)
+        print(f"✅ Archivo descargado en {local_path}")
+
+        # Conectar con MinIO usando conexión configurada en Airflow
+        print(f"🚀 Subiendo {nombre_archivo_local} al bucket '{bucket_name}' en MinIO...")
+        hook = S3Hook(aws_conn_id='minio_s3')
+        hook.load_file(
+            filename=local_path,
+            key=s3_key,
+            bucket_name=bucket_name,
+            replace=True  # Reemplaza si ya existe
+        )
+        print(f"✅ Archivo {nombre_archivo_local} subido correctamente a {bucket_name}/{s3_key}")
+
+
 
 # DAG definition
 with DAG(
@@ -168,6 +204,12 @@ with DAG(
         )
     )
 
+    descargar_dataset = PythonOperator(
+        task_id='descargar_dataset',
+        python_callable=descargar_dataset,
+        provide_context=True  # Si usás **kwargs, esto es necesario
+    )
+
     mostrar_head = PythonOperator(
         task_id='mostrar_head',
         python_callable=leer_y_loguear
@@ -183,4 +225,4 @@ with DAG(
 )
 
 
-    probar_minio >> descargar_csv >> mostrar_head >> split_dataset_task >> svm_modeling_task
+    probar_minio >> descargar_dataset >> mostrar_head >> split_dataset_task >> svm_modeling_task
