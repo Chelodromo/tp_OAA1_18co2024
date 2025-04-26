@@ -5,6 +5,8 @@ from datetime import datetime
 import pandas as pd
 from botocore.exceptions import ClientError
 import os
+import io
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 
 
 ## Minio bucket
