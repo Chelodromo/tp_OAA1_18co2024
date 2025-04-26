@@ -13,22 +13,24 @@ minio_secret_key = "minioadmin"
 bucket_name = "respaldo"
 modelo_key = "modelos/modelo_svm.pkl"
 
-#  Conectarse a MinIO y cargar el modelo
-s3_client = boto3.client(
-    's3',
-    endpoint_url=f"http://{minio_endpoint}",
-    aws_access_key_id=minio_access_key,
-    aws_secret_access_key=minio_secret_key,
-    region_name="us-east-1",
-)
+#  Intentar conectar a MinIO y cargar el modelo
+modelo = None
+try:
+    s3_client = boto3.client(
+        's3',
+        endpoint_url=f"http://{minio_endpoint}",
+        aws_access_key_id=minio_access_key,
+        aws_secret_access_key=minio_secret_key,
+        region_name="us-east-1",
+    )
 
-response = s3_client.get_object(Bucket=bucket_name, Key=modelo_key)
-modelo_bytes = response['Body'].read()
+    response = s3_client.get_object(Bucket=bucket_name, Key=modelo_key)
+    modelo_bytes = response['Body'].read()
 
-buffer = io.BytesIO(modelo_bytes)
-modelo = joblib.load(buffer)
+    buffer = io.BytesIO(modelo_bytes)
+    modelo = joblib.load(buffer)
 
-print(f"✅ Modelo cargado exitosamente desde MinIO ({minio_endpoint})")
+    print(f"✅ Modelo cargado exitosamente desde MinIO ({minio_endpoint})")
 
 except Exception as e:
     print(f"❌ Error cargando modelo desde MinIO: {e}")
@@ -36,7 +38,6 @@ except Exception as e:
 # --- 🚀 Inicializar FastAPI
 app = FastAPI()
 
-# Estructura de un solo registro
 class Caracteristica(BaseModel):
     TempOut: float
     OutHum: float
@@ -68,11 +69,9 @@ class Caracteristica(BaseModel):
     HWDir_deg: float
     Date_num: float
 
-# Entrada de muchos registros
 class Entrada(BaseModel):
     caracteristicas: List[Caracteristica]
 
-# Ruta para predicción
 @app.post("/predecir")
 def predict(entrada: Entrada):
     if modelo is None:
