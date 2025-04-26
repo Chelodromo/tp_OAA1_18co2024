@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import List
 import pandas as pd
+import os
 
 #  Configuración fija para MinIO
 minio_endpoint = os.getenv("MINIO_ENDPOINT", "localhost:9000")
