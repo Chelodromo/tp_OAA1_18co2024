@@ -146,8 +146,28 @@ def svm_modeling():
     print("\n🔍 Confusion Matrix:")
     print(confusion_matrix(y_test_svm, y_pred_svm))
 
-    joblib.dump(svm_linear, os.path.join(path, "modelo_svm.pkl"))
-    print("✅ Modelo SVM guardado como modelo_svm.pkl")
+    #  Guardar el modelo directamente en MinIO ---
+    try:
+        # Serializar el modelo a memoria (BytesIO)
+        buffer = io.BytesIO()
+        joblib.dump(svm_linear, buffer)
+        buffer.seek(0)  # Volver al principio del buffer
+
+        # Conectarse a MinIO
+        hook = S3Hook(aws_conn_id='minio_s3')
+        s3_client = hook.get_conn()
+
+        # Subir el buffer
+        s3_client.put_object(
+            Bucket='respaldo',
+            Key='modelos/modelo_svm.pkl',  # carpeta "modelos" dentro del bucket
+            Body=buffer.getvalue()
+        )
+
+        print("✅ Modelo subido exitosamente a MinIO (bucket 'respaldo', carpeta 'modelos/').")
+
+    except Exception as e:
+        print(f"❌ Error al subir modelo a MinIO: {e}")
 
 # DAG definition
 with DAG(
