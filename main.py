@@ -30,6 +30,9 @@ modelo = joblib.load(buffer)
 
 print(f"✅ Modelo cargado exitosamente desde MinIO ({minio_endpoint})")
 
+except Exception as e:
+    print(f"❌ Error cargando modelo desde MinIO: {e}")
+
 # --- 🚀 Inicializar FastAPI
 app = FastAPI()
 
@@ -72,6 +75,9 @@ class Entrada(BaseModel):
 # Ruta para predicción
 @app.post("/predecir")
 def predict(entrada: Entrada):
+    if modelo is None:
+        return {"error": "Modelo no disponible. No se pudo cargar desde MinIO."}
+    
     datos = [carac.dict() for carac in entrada.caracteristicas]
     df = pd.DataFrame(datos)
     predicciones = modelo.predict(df)
