@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from typing import List
 import pandas as pd
 import os
+from fastapi.responses import StreamingResponse
 
 #  Configuración fija para MinIO
 minio_endpoint = os.getenv("MINIO_ENDPOINT", "localhost:9000")
@@ -39,6 +40,7 @@ except Exception as e:
 # --- 🚀 Inicializar FastAPI
 app = FastAPI()
 
+# Definir el esquema de entrada para /predecir
 class Caracteristica(BaseModel):
     TempOut: float
     OutHum: float
@@ -73,6 +75,7 @@ class Caracteristica(BaseModel):
 class Entrada(BaseModel):
     caracteristicas: List[Caracteristica]
 
+# --- Endpoint 1️⃣: predicción normal
 @app.post("/predecir")
 def predict(entrada: Entrada):
     if modelo is None:
@@ -82,3 +85,41 @@ def predict(entrada: Entrada):
     df = pd.DataFrame(datos)
     predicciones = modelo.predict(df)
     return {"predicciones": predicciones.tolist()}
+
+# --- Endpoint 2️⃣: predicción batch leyendo df_nuevo.csv desde MinIO
+@app.get("/batch_predict")
+def batch_predict():
+    if modelo is None:
+        return {"error": "Modelo no disponible. No se pudo cargar desde MinIO."}
+    
+    try:
+        # 1️⃣ Parámetros fijos
+        file_key = "modelos/df_nuevo.csv"
+
+        # 2️⃣ Descargar el archivo desde MinIO
+        response = s3_client.get_object(Bucket=bucket_name, Key=file_key)
+        file_content = response['Body'].read()
+
+        # 3️⃣ Cargar CSV en un DataFrame
+        df = pd.read_csv(io.BytesIO(file_content))
+        
+        # 4️⃣ Realizar las predicciones
+        predicciones = modelo.predict(df)
+
+        # 5️⃣ Agregar las predicciones al DataFrame
+        df['prediccion'] = predicciones
+
+        # 6️⃣ Preparar el CSV para enviar como respuesta
+        output = io.StringIO()
+        df.to_csv(output, index=False)
+        output.seek(0)
+
+        # 7️⃣ Devolver el CSV para descargar
+        return StreamingResponse(
+            iter([output.getvalue()]),
+            media_type="text/csv",
+            headers={"Content-Disposition": "attachment; filename=df_nuevo_predicho.csv"}
+        )
+
+    except Exception as e:
+        return {"error": f"Error en batch_predict: {str(e)}"}
