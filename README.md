@@ -107,3 +107,133 @@ git push
 ```
 
 ---
+# 🛠️ Proyecto Airflow + MinIO + ML Pipeline + FastAPI
+
+Este proyecto orquesta un flujo completo de procesamiento de datos, entrenamiento y deploy de modelos usando:
+- **Apache Airflow** (orquestación)
+- **MinIO** (storage tipo S3)
+- **MLflow** (tracking de experimentos)
+- **FastAPI** (servir el modelo en producción)
+
+Todo el ecosistema corre en **Docker Compose**.
+
+## 📦 Estructura del Proyecto
+
+```
+.
+├── dags/                   # DAGs de Airflow
+├── fastapi_app/             # App de FastAPI para servir el modelo
+│   ├── app.py               # API principal
+│   ├── schemas.py           # Esquemas de entrada
+├── mlflow/                  # Carpeta local para MLflow tracking
+├── datalake/                # Datalake local (usado por MinIO)
+├── docker-compose.yml       # Definición de servicios
+├── Dockerfile.fastapi       # Imagen de la app de FastAPI
+├── .env                     # Variables de entorno
+└── .gitignore               # Ignorar archivos temporales
+```
+
+## 🐍 FastAPI para servir modelos
+
+- **App**: Corre en `http://localhost:8000`
+- **Documentación Swagger**: `http://localhost:8000/docs`
+
+### Endpoints disponibles
+
+- **POST** `/predict`
+  - Recibe un único registro para predecir.
+  - **Ejemplo de input**:
+```json
+{
+    "TempOut": 10.5,
+    "DewPt_": -3.2,
+    "WSpeed": 5.7,
+    "WHSpeed": 30.0,
+    "Bar": 622.1,
+    "Rain": 0.0,
+    "ET": 4.2,
+    "WDir_deg": 154.5,
+    "Date_num": 1743465600.0
+}
+```
+
+- **POST** `/predict_batch`
+  - Recibe varios registros en formato lista.
+  - **Ejemplo de input**:
+```json
+[
+  {
+    "TempOut": 10.5,
+    "DewPt_": -3.2,
+    "WSpeed": 5.7,
+    "WHSpeed": 30.0,
+    "Bar": 622.1,
+    "Rain": 0.0,
+    "ET": 4.2,
+    "WDir_deg": 154.5,
+    "Date_num": 1743465600.0
+  },
+  {
+    "TempOut": 9.8,
+    "DewPt_": -2.1,
+    "WSpeed": 6.0,
+    "WHSpeed": 35.0,
+    "Bar": 621.5,
+    "Rain": 0.0,
+    "ET": 4.5,
+    "WDir_deg": 120.5,
+    "Date_num": 1743552000.0
+  }
+]
+```
+
+- **Respuesta**:
+```json
+{
+  "prediction": [false, true]
+}
+```
+
+### 🔄 Actualización Dinámica del Modelo
+
+Cada vez que la app FastAPI se inicia:
+- Busca automáticamente el último modelo `.pkl` en el bucket MinIO `respaldo2/best_model/`
+- Carga el modelo al inicio (`@app.on_event('startup')`).
+
+
+## 🚀 Para levantar todo
+
+```bash
+docker-compose up --build
+```
+
+Accesos:
+- **Airflow**: [http://localhost:8080](http://localhost:8080)
+- **FastAPI**: [http://localhost:8000/docs](http://localhost:8000/docs)
+- **MinIO Console**: [http://localhost:9001](http://localhost:9001)
+- **MLflow Tracking**: [http://localhost:5001](http://localhost:5001)
+
+
+## 🔧 Servicios Docker
+
+| Servicio         | Puerto Expuesto | Descripción                  |
+|------------------|------------------|-------------------------------|
+| Airflow Webserver | 8080             | UI de Airflow                  |
+| Airflow Scheduler | 8080             | Scheduler de Airflow           |
+| Airflow Worker    | 8080             | Workers de Airflow             |
+| MinIO             | 9000, 9001        | API y consola de MinIO         |
+| PostgreSQL        | 5432             | Base de datos de Airflow       |
+| Redis             | 6379             | Broker de Airflow              |
+| MLflow            | 5001             | Tracking server de MLflow      |
+| FastAPI           | 8000             | API REST para predicciones     |
+
+
+## 🚧 Proximamente
+- Agregar versionado de modelos (MLflow registry)
+- Tests automáticos CI/CD
+- Escalabilidad a Kubernetes (opcional)
+
+---
+
+💭 *Proyecto de referencia integrando orquestación, almacenamiento, tracking de modelos y APIs de inferencia en producción.*
+
