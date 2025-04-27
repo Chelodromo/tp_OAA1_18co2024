@@ -11,10 +11,10 @@ import os
 minio_endpoint = os.getenv("MINIO_ENDPOINT", "localhost:9000")
 minio_access_key = os.getenv("MINIO_ACCESS_KEY", "minio_admin")
 minio_secret_key = os.getenv("MINIO_SECRET_KEY", "minio_admin")
-bucket_name = "respaldo"
-modelo_key = "modelos/modelo_svm.pkl"
+bucket_name = "respaldo2"
+modelo_folder = "best_model/"
 
-# --- 🧠 Intentar conectar a MinIO y cargar el modelo
+# --- 🧠 Intentar conectar a MinIO y cargar el modelo más nuevo
 modelo = None
 try:
     s3_client = boto3.client(
@@ -25,13 +25,25 @@ try:
         region_name="us-east-1",
     )
 
+    # Listar archivos en best_model/
+    response = s3_client.list_objects_v2(Bucket=bucket_name, Prefix=modelo_folder)
+    objetos = response.get('Contents', [])
+
+    if not objetos:
+        raise Exception(f"No se encontraron modelos en {modelo_folder}")
+
+    # Ordenar por fecha de modificación (el más nuevo primero)
+    objetos = sorted(objetos, key=lambda obj: obj['LastModified'], reverse=True)
+    modelo_key = objetos[0]['Key']  # El más reciente
+
+    # Descargar y cargar el modelo
     response = s3_client.get_object(Bucket=bucket_name, Key=modelo_key)
     modelo_bytes = response['Body'].read()
 
     buffer = io.BytesIO(modelo_bytes)
     modelo = joblib.load(buffer)
 
-    print(f"✅ Modelo cargado exitosamente desde MinIO ({minio_endpoint})")
+    print(f"✅ Modelo más nuevo cargado: {modelo_key}")
 
 except Exception as e:
     print(f"❌ Error cargando modelo desde MinIO: {e}")
@@ -39,7 +51,7 @@ except Exception as e:
 # --- 🚀 Inicializar FastAPI
 app = FastAPI()
 
-# --- 🧩 Esquema de Entrada para /predecir
+# --- 🧩 Esquema de Entrada
 class Caracteristica(BaseModel):
     TempOut: float
     OutHum: float
@@ -92,7 +104,6 @@ def batch_predict():
         if modelo is None:
             return {"error": "Modelo no disponible."}
 
-        # Conectar de nuevo (por si se cayó)
         s3_client = boto3.client(
             's3',
             endpoint_url=f"http://{minio_endpoint}",
@@ -103,7 +114,7 @@ def batch_predict():
 
         # Leer el archivo df_nuevo.json
         response = s3_client.get_object(Bucket=bucket_name, Key="modelos/df_nuevo.json")
-        df = pd.read_json(io.BytesIO(response['Body'].read()))  # 👉 corregido
+        df = pd.read_json(io.BytesIO(response['Body'].read()))
 
         # Predicción
         predicciones = modelo.predict(df)
@@ -124,3 +135,4 @@ def batch_predict():
 
     except Exception as e:
         return {"error": f"Error en batch_predict: {e}"}
+
