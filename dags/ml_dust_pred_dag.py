@@ -5,7 +5,7 @@ from datetime import datetime
 import pandas as pd
 from botocore.exceptions import ClientError
 import os
-
+import requests
 ## Minio bucket
 from airflow import DAG
 from airflow.operators.python import PythonOperator
@@ -27,6 +27,7 @@ from sklearn.svm import SVC
 from sklearn.model_selection import cross_val_score
 from sklearn.metrics import confusion_matrix
 import mlflow
+import pickle
 
 def ejemplo_conexion_s3():
     bucket_name = 'respaldo2'
@@ -278,7 +279,11 @@ def split_dataset_minio(**kwargs):
         df_polvo_svm['Date_num'] = pd.to_numeric(df_polvo_svm['Date_num'], errors='coerce')
 
         # Eliminar columnas irrelevantes
-        columnas_a_eliminar = ['Date', 'Punto', 'HiTemp', 'LowTemp', 'WTx', 'SolRate', 'SolRad.', 'arcInt']
+        #columnas_a_eliminar = ['Date', 'Punto', 'HiTemp', 'LowTemp', 'WTx', 'SolRate', 'SolRad.', 'arcInt']
+        columnas_a_eliminar =['Date','Punto', 'HiTemp', 'LowTemp', 'WTx', 'SolRate', 'SolRad.', 'arcInt',  # columnas viejas que sobraban
+            'OutHum', 'WRun', 'WChill', 'HeatIx', 'ThwIx', 'ThswI', 'HiSlE', 'Rad.', 
+            'uvIndex', 'uDose', 'hiUV', 'hetD-D', 'colD-D', 'inTemp', 'inHum',
+            'inDew', 'iHeat', 'WSamp', 'iRecept', 'HWDir_deg']
         df_polvo_svm = df_polvo_svm.drop(columns=[c for c in columnas_a_eliminar if c in df_polvo_svm.columns])
 
         print(df_polvo_svm.info())
@@ -291,7 +296,7 @@ def split_dataset_minio(**kwargs):
         X_train_svm, X_test_svm, y_train_svm, y_test_svm = train_test_split(
             X, y, stratify=y, test_size=0.3, random_state=42
         )
-
+        print(X_train_svm.info())
         print("✅ Split realizado con éxito.")
         print("📊 Tamaño del conjunto de entrenamiento:", len(X_train_svm))
         print("📈 Tamaño del conjunto de prueba:", len(X_test_svm))
@@ -821,10 +826,91 @@ def seleccionar_mejor_modelo(**kwargs):
 
         print(f"🚀 Mejor modelo subido como {best_model_key}")
 
+def predict_datos_actuales(**kwargs):
+    # 🔐 Autenticarse
+    user = "ricardoq"
+    pswd = "eLxdr3FZ51DE"
+    auth_url = 'https://tca-ssrm.com/api/auth'
+    payload = {'username': user, 'password': pswd}
 
+    auth_response = requests.post(auth_url, data=payload)
+    auth_response.raise_for_status()
+    auth_token = auth_response.json()['token']
 
+    headers = {"Authorization": f"Token {auth_token}"}
 
+    # 🌐 Traer datos actuales
+    base_url = "https://tca-ssrm.com/api"
+    report_url = f"{base_url}/estaciones/registros/reporte?estacion_id=164144&fecha_de_inicio=2025-04-01T00:00:00&periodo=1%20Mes&page_size=50&page=1&order_by=fecha&mode=hi"
 
+    response = requests.get(report_url, headers=headers)
+    response.raise_for_status()
+
+    df_raw = pd.DataFrame(response.json()['data']['rows'], columns=response.json()['data']['header']).reset_index(drop=True)
+
+    # ⚠️ Eliminar última fila (AVERAGE)
+    df_raw = df_raw.iloc[:-1]
+
+    # 🗓️ Guardar las fechas para luego
+    fechas = df_raw['Date'].tolist()
+
+    # ✨ Preprocesar
+    columnas_a_mantener = [
+        'Date', 'Avg Temp ºC', 'Avg DEW PT ºC', 'Avg Wind Speed km/h',
+        'Max wind Speed km/h', 'Pressure HPA', 'Precip. mm', 'ET mm', 'Wind dir'
+    ]
+    df = df_raw[columnas_a_mantener].copy()
+
+    df['Date_num'] = pd.to_datetime(df['Date'], format='%d/%m/%Y', errors='coerce').apply(lambda x: x.timestamp())
+    df = df.drop(columns=['Date'])
+
+    df = df.rename(columns={
+        'Avg Temp ºC': 'TempOut',
+        'Avg DEW PT ºC': 'DewPt.',
+        'Avg Wind Speed km/h': 'WSpeed',
+        'Max wind Speed km/h': 'WHSpeed',
+        'Pressure HPA': 'Bar',
+        'Precip. mm': 'Rain',
+        'ET mm': 'ET',
+        'Wind dir': 'WDir_deg'
+    })
+
+    print("\n✅ Datos actuales listos para predicción:")
+    print(df.head())
+
+    # 📦 Descargar último modelo
+    hook = S3Hook(aws_conn_id='minio_s3')
+    bucket_name = 'respaldo2'
+
+    all_models = hook.list_keys(bucket_name=bucket_name, prefix='best_model/')
+    model_files = [k for k in all_models if k.endswith('.pkl')]
+    latest_model = sorted(model_files, reverse=True)[0]
+
+    print(f"📦 Último modelo encontrado: {latest_model}")
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # Ruta final donde guardarlo
+        local_model_path = os.path.join(tmpdirname, os.path.basename(latest_model))
+        
+        # Usar hook para descargar explícitamente en esa ruta
+        hook.get_conn().download_file(
+            Bucket=bucket_name,
+            Key=latest_model,
+            Filename=local_model_path
+        )
+
+        with open(local_model_path, 'rb') as f:
+            model = pickle.load(f)
+
+        # 🔮 Predecir
+        if hasattr(model, 'predict_proba'):
+            proba = model.predict_proba(df)[:, 1]
+        else:
+            proba = model.predict(df)
+
+        # 📅 Mostrar resultados
+        for fecha, p in zip(fechas, proba):
+            print(f"📅 Fecha: {fecha} - 🔮 Probabilidad de clase positiva (polvo): {p:.4f}")
 
 # DAG definition
 with DAG(
@@ -920,8 +1006,13 @@ seleccionar_mejor_modelo_task = PythonOperator(
     dag=dag
 )
 
+predict_datos_actuales_task = PythonOperator(
+    task_id='predict_datos_actuales',
+    python_callable=predict_datos_actuales,
+    dag=dag,
+)
 
 
 descargar_csv >> mostrar_head >> split_dataset_task >> svm_modeling_task
-probar_minio >> descargar_dataset >> procesar_dataset >> split_dataset_task_minio >> run_test >> [train_lightgbm_task, train_randomforest_task, train_logisticregression_task , train_knn_optuna_minio_task] >> seleccionar_mejor_modelo_task
+probar_minio >> descargar_dataset >> procesar_dataset >> split_dataset_task_minio >> run_test >> [train_lightgbm_task, train_randomforest_task, train_logisticregression_task , train_knn_optuna_minio_task] >> seleccionar_mejor_modelo_task >> predict_datos_actuales_task
 
