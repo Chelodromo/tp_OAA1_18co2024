@@ -102,7 +102,7 @@ def batch_predict():
         )
 
         # Leer el archivo df_nuevo.json
-        response = s3_client.get_object(Bucket=bucket_name, Key="respaldo/modelos/df_nuevo.json")
+        response = s3_client.get_object(Bucket=bucket_name, Key="modelos/df_nuevo.json")
         df = pd.read_json(io.BytesIO(response['Body'].read()))  # 👉 corregido
 
         # Predicción
