@@ -47,6 +47,13 @@ Este proyecto orquesta un flujo de procesamiento de datos y entrenamiento de un 
 - Usuario/Contraseña: `minioadmin / minioadmin`
 - Bucket usado: `datalake`
 
+## Servicios adicionales
+
+- **MLflow Tracking Server**:
+  - URL: http://localhost:5001
+  - Almacenamiento de tracking: Local en `./mlflow`
+  - Base de datos backend: SQLite (mlflow.db)
+
 Airflow se conecta a MinIO automáticamente con:
 
 ```yaml

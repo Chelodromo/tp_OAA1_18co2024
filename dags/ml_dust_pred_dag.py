@@ -26,7 +26,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
 from sklearn.model_selection import cross_val_score
 from sklearn.metrics import confusion_matrix
-
+import mlflow
 
 def ejemplo_conexion_s3():
     bucket_name = 'respaldo2'
@@ -367,7 +367,447 @@ def svm_modeling_minio(**kwargs):
 
         # Matriz de confusión
         print("\n🔍 Confusion Matrix:")
-        print(confusion_matrix(y_test_svm, y_pred_svm))           
+        print(confusion_matrix(y_test_svm, y_pred_svm))  
+        
+def simple_mlflow_run(**kwargs):
+    mlflow.set_tracking_uri("http://mlflow:5000")
+    mlflow.set_experiment("test_airflow_experiment")
+
+    with mlflow.start_run(run_name="test_run"):
+        mlflow.log_param("param1", 5)
+        mlflow.log_metric("accuracy", 0.87)
+        print("✅ MLflow test: parámetro y métrica registrados.")
+
+def train_lightgbm_optuna_minio(**kwargs):
+    import os
+    import tempfile
+    import pandas as pd
+    import pickle
+    import lightgbm as lgb
+    import mlflow
+    import mlflow.lightgbm
+    import optuna
+    from sklearn.metrics import accuracy_score
+    from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+
+    # Configuración de MinIO
+    bucket_name = 'respaldo2'
+    splits_path = 'splits'
+    aws_conn_id = 'minio_s3'
+
+    # Configurar tracking remoto
+    mlflow.set_tracking_uri("http://mlflow:5000")
+
+    hook = S3Hook(aws_conn_id=aws_conn_id)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        print(f"📁 Usando directorio temporal: {tmpdir}")
+
+        # Descargar splits desde MinIO
+        archivos = ['X_train.json', 'X_test.json', 'y_train.json', 'y_test.json']
+        paths_locales = {}
+
+        for archivo in archivos:
+            content = hook.read_key(key=f"{splits_path}/{archivo}", bucket_name=bucket_name)
+            local_path = os.path.join(tmpdir, archivo)
+            with open(local_path, 'w', encoding='utf-8') as f:
+                f.write(content)
+            paths_locales[archivo] = local_path
+            print(f"✅ Descargado: {archivo}")
+
+        # Cargar los datos
+        X_train = pd.read_json(paths_locales['X_train.json'])
+        X_test = pd.read_json(paths_locales['X_test.json'])
+        y_train = pd.read_json(paths_locales['y_train.json'], typ='series')
+        y_test = pd.read_json(paths_locales['y_test.json'], typ='series')
+
+        # Definir función objetivo para Optuna
+        def objective(trial):
+            params = {
+                'objective': 'binary',
+                'metric': 'binary_logloss',
+                'boosting_type': 'gbdt',
+                'num_leaves': trial.suggest_int('num_leaves', 20, 100),
+                'max_depth': trial.suggest_int('max_depth', 3, 10),
+                'learning_rate': trial.suggest_float('learning_rate', 1e-3, 0.3, log=True),
+                'feature_fraction': trial.suggest_float('feature_fraction', 0.6, 1.0),
+                'bagging_fraction': trial.suggest_float('bagging_fraction', 0.6, 1.0),
+                'bagging_freq': trial.suggest_int('bagging_freq', 1, 7),
+                'min_data_in_leaf': trial.suggest_int('min_data_in_leaf', 10, 100),
+            }
+
+            lgb_train = lgb.Dataset(X_train, y_train)
+            model = lgb.train(
+                params,
+                lgb_train,
+                num_boost_round=100,
+                callbacks=[lgb.log_evaluation(0)]  # Silenciar logs
+            )
+
+            y_pred = model.predict(X_test)
+            y_pred_binary = (y_pred > 0.5).astype(int)
+
+            return accuracy_score(y_test, y_pred_binary)
+
+        # Ejecutar optimización con Optuna
+        study = optuna.create_study(direction='maximize')
+        study.optimize(objective, n_trials=10)
+
+        print("✅ Mejor hiperparámetros encontrados:", study.best_params)
+
+        # Entrenar modelo final
+        best_params = study.best_params
+        best_params.update({
+            'objective': 'binary',
+            'metric': 'binary_logloss',
+            'boosting_type': 'gbdt',
+        })
+
+        lgb_train = lgb.Dataset(X_train, y_train)
+        model_final = lgb.train(
+            best_params,
+            lgb_train,
+            num_boost_round=100,
+            callbacks=[lgb.log_evaluation(0)]
+        )
+
+        # Loggear en MLflow
+        experiment_name = "lightgbm_experiment"
+        mlflow.set_experiment(experiment_name)
+
+        with mlflow.start_run(run_name="lightgbm_run") as run:
+            mlflow.log_params(best_params)
+
+            y_pred = model_final.predict(X_test)
+            y_pred_binary = (y_pred > 0.5).astype(int)
+            acc = accuracy_score(y_test, y_pred_binary)
+
+            mlflow.log_metric("accuracy", acc)
+
+            mlflow.lightgbm.log_model(
+                model_final,
+                artifact_path="lightgbm_model"
+            )
+
+        print(f"✅ Modelo registrado en MLflow (experimento: {experiment_name})")
+
+        # Guardar modelo final como pickle
+        model_path = os.path.join(tmpdir, "lightgbm_model.pkl")
+        with open(model_path, 'wb') as f:
+            pickle.dump(model_final, f)
+        print(f"💾 Modelo guardado localmente: {model_path}")
+
+        # Subir el modelo a MinIO
+        hook.load_file(
+            filename=model_path,
+            key="modelos/lightgbm_model.pkl",
+            bucket_name=bucket_name,
+            replace=True
+        )
+        print(f"✅ Modelo subido a MinIO: modelos/lightgbm_model.pkl")
+
+
+def train_randomforest_optuna_minio(**kwargs):
+    import os
+    import tempfile
+    import pandas as pd
+    import pickle
+    import mlflow
+    import mlflow.sklearn
+    import optuna
+    from sklearn.ensemble import RandomForestClassifier
+    from sklearn.metrics import accuracy_score
+    from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+
+    bucket_name = 'respaldo2'
+    splits_path = 'splits'
+    aws_conn_id = 'minio_s3'
+
+    hook = S3Hook(aws_conn_id=aws_conn_id)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        print(f"📁 Usando directorio temporal: {tmpdir}")
+
+        # Descargar splits desde MinIO
+        archivos = ['X_train.json', 'X_test.json', 'y_train.json', 'y_test.json']
+        paths_locales = {}
+
+        for archivo in archivos:
+            content = hook.read_key(key=f"{splits_path}/{archivo}", bucket_name=bucket_name)
+            local_path = os.path.join(tmpdir, archivo)
+            with open(local_path, 'w', encoding='utf-8') as f:
+                f.write(content)
+            paths_locales[archivo] = local_path
+            print(f"✅ Descargado: {archivo}")
+
+        # Cargar los datos
+        X_train = pd.read_json(paths_locales['X_train.json'])
+        X_test = pd.read_json(paths_locales['X_test.json'])
+        y_train = pd.read_json(paths_locales['y_train.json'], typ='series')
+        y_test = pd.read_json(paths_locales['y_test.json'], typ='series')
+
+        # Función objetivo para Optuna
+        def objective(trial):
+            params = {
+                'n_estimators': trial.suggest_int('n_estimators', 50, 300),
+                'max_depth': trial.suggest_int('max_depth', 3, 20),
+                'min_samples_split': trial.suggest_int('min_samples_split', 2, 20),
+                'min_samples_leaf': trial.suggest_int('min_samples_leaf', 1, 20),
+                'max_features': trial.suggest_categorical('max_features', ['sqrt', 'log2', None]),
+            }
+            model = RandomForestClassifier(**params, random_state=42, n_jobs=-1)
+            model.fit(X_train, y_train)
+            preds = model.predict(X_test)
+            acc = accuracy_score(y_test, preds)
+            return acc
+
+        # Ejecutar Optuna
+        study = optuna.create_study(direction='maximize')
+        study.optimize(objective, n_trials=10)
+
+        print("✅ Mejor hiperparámetros encontrados:", study.best_params)
+
+        # Entrenar modelo final
+        best_params = study.best_params
+        model_final = RandomForestClassifier(**best_params, random_state=42, n_jobs=-1)
+        model_final.fit(X_train, y_train)
+
+        # Tracking en MLflow
+        mlflow.set_tracking_uri("http://mlflow:5000")
+        experiment_name = "randomforest_experiment"
+
+        mlflow.set_experiment(experiment_name)
+        with mlflow.start_run(run_name="randomforest_run") as run:
+            mlflow.log_params(best_params)
+
+            preds = model_final.predict(X_test)
+            acc = accuracy_score(y_test, preds)
+
+            mlflow.log_metric("accuracy", acc)
+
+            mlflow.sklearn.log_model(model_final, artifact_path="randomforest_model")
+
+        print(f"✅ Modelo registrado en MLflow (experiment: {experiment_name})")
+
+        # Guardar modelo como pickle
+        model_path = os.path.join(tmpdir, "randomforest_model.pkl")
+        with open(model_path, 'wb') as f:
+            pickle.dump(model_final, f)
+        print(f"💾 Modelo guardado como {model_path}")
+
+        # Subir modelo a MinIO
+        hook.load_file(
+            filename=model_path,
+            key="modelos/randomforest_model.pkl",
+            bucket_name=bucket_name,
+            replace=True
+        )
+        print(f"✅ Modelo subido a MinIO en modelos/randomforest_model.pkl")
+
+def train_logisticregression_optuna_minio(**kwargs):
+    import os
+    import tempfile
+    import pandas as pd
+    import pickle
+    import mlflow
+    import mlflow.sklearn
+    import optuna
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.preprocessing import StandardScaler
+    from sklearn.metrics import accuracy_score
+    from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+
+    # Parámetros generales
+    bucket_name = 'respaldo2'
+    splits_path = 'splits'
+    aws_conn_id = 'minio_s3'
+
+    hook = S3Hook(aws_conn_id=aws_conn_id)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        print(f"📁 Usando directorio temporal: {tmpdir}")
+
+        # Descargar splits
+        archivos = ['X_train.json', 'X_test.json', 'y_train.json', 'y_test.json']
+        paths_locales = {}
+
+        for archivo in archivos:
+            content = hook.read_key(key=f"{splits_path}/{archivo}", bucket_name=bucket_name)
+            local_path = os.path.join(tmpdir, archivo)
+            with open(local_path, 'w', encoding='utf-8') as f:
+                f.write(content)
+            paths_locales[archivo] = local_path
+            print(f"✅ Descargado: {archivo}")
+
+        # Cargar datasets
+        X_train = pd.read_json(paths_locales['X_train.json'])
+        X_test = pd.read_json(paths_locales['X_test.json'])
+        y_train = pd.read_json(paths_locales['y_train.json'], typ='series')
+        y_test = pd.read_json(paths_locales['y_test.json'], typ='series')
+
+        # Escalar features
+        scaler = StandardScaler()
+        X_train_scaled = scaler.fit_transform(X_train)
+        X_test_scaled = scaler.transform(X_test)
+
+        # Definición de la función de Optuna
+        def objective(trial):
+            params = {
+                'C': trial.suggest_float('C', 1e-4, 10.0, log=True),
+                'max_iter': trial.suggest_int('max_iter', 100, 1000),
+                'solver': trial.suggest_categorical('solver', ['liblinear', 'lbfgs']),
+            }
+            model = LogisticRegression(**params)
+            model.fit(X_train_scaled, y_train)
+            y_pred = model.predict(X_test_scaled)
+            return accuracy_score(y_test, y_pred)
+
+        # Ejecutar Optuna
+        study = optuna.create_study(direction='maximize')
+        study.optimize(objective, n_trials=10)
+
+        print("✅ Mejor hiperparámetros encontrados:", study.best_params)
+
+        # Entrenar modelo final
+        best_params = study.best_params
+        model_final = LogisticRegression(**best_params)
+        model_final.fit(X_train_scaled, y_train)
+
+        # MLflow Tracking
+        mlflow.set_tracking_uri("http://mlflow:5000")
+        experiment_name = "logisticregression_experiment"
+
+        mlflow.set_experiment(experiment_name)
+        with mlflow.start_run(run_name="logisticregression_run") as run:
+            mlflow.log_params(best_params)
+
+            y_pred = model_final.predict(X_test_scaled)
+            acc = accuracy_score(y_test, y_pred)
+
+            mlflow.log_metric("accuracy", acc)
+
+            # Registrar el modelo
+            mlflow.sklearn.log_model(
+                sk_model=model_final,
+                artifact_path="logisticregression_model"
+            )
+
+        print(f"✅ Modelo registrado en MLflow (experiment: {experiment_name})")
+
+        # Guardar el modelo como pickle
+        model_path = os.path.join(tmpdir, "logisticregression_model.pkl")
+        with open(model_path, 'wb') as f:
+            pickle.dump(model_final, f)
+        print(f"💾 Modelo guardado como {model_path}")
+
+        # Subir el modelo a MinIO
+        hook.load_file(
+            filename=model_path,
+            key="modelos/logisticregression_model.pkl",
+            bucket_name=bucket_name,
+            replace=True
+        )
+        print(f"✅ Modelo subido a MinIO en modelos/logisticregression_model.pkl")
+
+def train_svm_optuna_minio(**kwargs):
+    import os
+    import tempfile
+    import pandas as pd
+    import pickle
+    import mlflow
+    import mlflow.sklearn
+    import optuna
+    from sklearn.svm import SVC
+    from sklearn.metrics import accuracy_score
+    from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+
+    bucket_name = 'respaldo2'
+    splits_path = 'splits'
+    aws_conn_id = 'minio_s3'
+
+    hook = S3Hook(aws_conn_id=aws_conn_id)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        print(f"📁 Usando directorio temporal: {tmpdir}")
+
+        # Descargar splits desde MinIO
+        archivos = ['X_train.json', 'X_test.json', 'y_train.json', 'y_test.json']
+        paths_locales = {}
+
+        for archivo in archivos:
+            content = hook.read_key(key=f"{splits_path}/{archivo}", bucket_name=bucket_name)
+            local_path = os.path.join(tmpdir, archivo)
+            with open(local_path, 'w', encoding='utf-8') as f:
+                f.write(content)
+            paths_locales[archivo] = local_path
+            print(f"✅ Descargado: {archivo}")
+
+        # Cargar los datos
+        X_train = pd.read_json(paths_locales['X_train.json'])
+        X_test = pd.read_json(paths_locales['X_test.json'])
+        y_train = pd.read_json(paths_locales['y_train.json'], typ='series')
+        y_test = pd.read_json(paths_locales['y_test.json'], typ='series')
+
+        # Definición de la función objetivo para Optuna
+        def objective(trial):
+            C = trial.suggest_float('C', 1e-3, 100, log=True)
+            kernel = trial.suggest_categorical('kernel', ['linear', 'rbf', 'poly'])
+            gamma = 'scale'  # Valor por defecto
+            if kernel in ['rbf', 'poly']:
+                gamma = trial.suggest_float('gamma', 1e-4, 1.0, log=True)
+
+            model = SVC(C=C, kernel=kernel, gamma=gamma)
+            model.fit(X_train, y_train)
+            y_pred = model.predict(X_test)
+            acc = accuracy_score(y_test, y_pred)
+            return acc
+
+        # Ejecutar Optuna
+        study = optuna.create_study(direction='maximize')
+        study.optimize(objective, n_trials=10)
+
+        print("✅ Mejor hiperparámetros encontrados:", study.best_params)
+
+        # Entrenar modelo final con mejores hiperparámetros
+        best_params = study.best_params
+        gamma = best_params.pop('gamma', 'scale')  # 'gamma' sólo si kernel era 'rbf' o 'poly'
+
+        model_final = SVC(**best_params, gamma=gamma)
+        model_final.fit(X_train, y_train)
+
+        # Tracking en MLflow
+        mlflow.set_tracking_uri("http://mlflow:5000")
+        experiment_name = "svm_experiment"
+
+        mlflow.set_experiment(experiment_name)
+        with mlflow.start_run(run_name="svm_run") as run:
+            mlflow.log_params(best_params)
+
+            y_pred = model_final.predict(X_test)
+            acc = accuracy_score(y_test, y_pred)
+
+            mlflow.log_metric("accuracy", acc)
+
+            # Guardar modelo en artefactos de MLflow
+            mlflow.sklearn.log_model(model_final, artifact_path="svm_model")
+
+        print(f"✅ Modelo registrado en MLflow (experiment: {experiment_name})")
+
+        # Guardar modelo final como pickle
+        model_path = os.path.join(tmpdir, "svm_model.pkl")
+        with open(model_path, 'wb') as f:
+            pickle.dump(model_final, f)
+        print(f"💾 Modelo guardado como {model_path}")
+
+        # Subir el modelo a MinIO
+        hook.load_file(
+            filename=model_path,
+            key="modelos/svm_model.pkl",
+            bucket_name=bucket_name,
+            replace=True
+        )
+        print(f"✅ Modelo subido a MinIO en modelos/svm_model.pkl")
+
 
 # DAG definition
 with DAG(
@@ -429,7 +869,37 @@ with DAG(
     provide_context=True,
     dag=dag
 )
-
-probar_minio >> descargar_dataset >> procesar_dataset >> split_dataset_task_minio >> svm_modeling_task_minio
+    run_test = PythonOperator(
+        task_id="mlflow_test_run",
+        python_callable=simple_mlflow_run,
+        provide_context=True
+    )
+    
+    train_lightgbm_task = PythonOperator(
+    task_id='train_lightgbm_optuna_minio',
+    python_callable=train_lightgbm_optuna_minio,
+    provide_context=True,
+    dag=dag
+)
+    train_randomforest_task = PythonOperator(
+    task_id='train_randomforest_optuna_minio',
+    python_callable=train_randomforest_optuna_minio,
+    provide_context=True,
+    dag=dag
+)
+train_logisticregression_task = PythonOperator(
+    task_id='train_logisticregression_optuna_minio',
+    python_callable=train_logisticregression_optuna_minio,
+    provide_context=True,
+    dag=dag
+)
+train_svm_task_2= PythonOperator(
+    task_id='train_svm_optuna_minio',
+    python_callable=train_svm_optuna_minio,
+    provide_context=True,
+    dag=dag
+)
 
 descargar_csv >> mostrar_head >> split_dataset_task >> svm_modeling_task
+probar_minio >> descargar_dataset >> procesar_dataset >> split_dataset_task_minio >> svm_modeling_task_minio >> run_test >> [train_lightgbm_task, train_randomforest_task, train_logisticregression_task, train_svm_task_2]
+
