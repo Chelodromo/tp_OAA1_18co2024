@@ -912,6 +912,67 @@ def predict_datos_actuales(**kwargs):
         for fecha, p in zip(fechas, proba):
             print(f"📅 Fecha: {fecha} - 🔮 Probabilidad de clase positiva (polvo): {p:.4f}")
 
+def test_endpoints_predict(**kwargs):
+    import pandas as pd
+    import requests
+
+    # 🔥 Pido los datos actuales a la API de la estación
+    user = "ricardoq"
+    pswd = "eLxdr3FZ51DE"
+    url_auth = 'https://tca-ssrm.com/api/auth'
+    payload = {'username': user, 'password': pswd}
+
+    auth_response = requests.post(url_auth, data=payload)
+    token = auth_response.json().get('token')
+
+    headers = {"Authorization": f"Token {token}"}
+    base_url = "https://tca-ssrm.com/api"
+    report_url = f"{base_url}/estaciones/registros/reporte?estacion_id=164144&fecha_de_inicio=2025-04-01T00:00:00&periodo=1%20Mes&page_size=50&page=1&order_by=fecha&mode=hi"
+
+    data_response = requests.get(report_url, headers=headers)
+    data_json = data_response.json()
+
+    df = pd.DataFrame(data_json['data']['rows'], columns=data_json['data']['header'])
+    df = df.iloc[:-1]
+
+    # 🔥 Preprocesado igual que en predict_datos_actuales
+    columnas_a_mantener = [
+        'Date', 'Avg Temp ºC', 'Avg DEW PT ºC', 'Avg Wind Speed km/h',
+        'Max wind Speed km/h', 'Pressure HPA', 'Precip. mm', 'ET mm', 'Wind dir'
+    ]
+    df = df[columnas_a_mantener]
+
+    df['Date_num'] = pd.to_datetime(df['Date'], format='%d/%m/%Y', errors='coerce').apply(lambda x: x.timestamp())
+    df = df.drop(columns=['Date'])
+    df = df.rename(columns={
+        'Avg Temp ºC': 'TempOut',
+        'Avg DEW PT ºC': 'DewPt_',
+        'Avg Wind Speed km/h': 'WSpeed',
+        'Max wind Speed km/h': 'WHSpeed',
+        'Pressure HPA': 'Bar',
+        'Precip. mm': 'Rain',
+        'ET mm': 'ET',
+        'Wind dir': 'WDir_deg'
+    })
+
+    df = df.dropna()
+
+    # 🔥 Elegir uno aleatorio
+    sample_row = df.sample(1).to_dict(orient="records")[0]
+    df_batch = df.to_dict(orient="records")
+
+    # 🔥 Hacer requests a la API FastAPI
+    url_predict = "http://fastapi_app:8000/predict"
+    url_predict_batch = "http://fastapi_app:8000/predict_batch"
+
+    response_single = requests.post(url_predict, json=sample_row)
+    print(f"✅ Resultado predict individual: {response_single.status_code} - {response_single.json()}")
+
+    response_batch = requests.post(url_predict_batch, json=df_batch)
+    print(f"✅ Resultado predict batch: {response_batch.status_code} - {response_batch.json()}")
+
+
+
 # DAG definition
 with DAG(
     dag_id="descargar_y_ver_dataset",
@@ -1012,7 +1073,13 @@ predict_datos_actuales_task = PythonOperator(
     dag=dag,
 )
 
+test_fastapi_endpoints = PythonOperator(
+    task_id="test_fastapi_endpoints",
+    python_callable=test_endpoints_predict,
+    provide_context=True,
+    dag=dag
+)
 
 descargar_csv >> mostrar_head >> split_dataset_task >> svm_modeling_task
-probar_minio >> descargar_dataset >> procesar_dataset >> split_dataset_task_minio >> run_test >> [train_lightgbm_task, train_randomforest_task, train_logisticregression_task , train_knn_optuna_minio_task] >> seleccionar_mejor_modelo_task >> predict_datos_actuales_task
+probar_minio >> descargar_dataset >> procesar_dataset >> split_dataset_task_minio >> run_test >> [train_lightgbm_task, train_randomforest_task, train_logisticregression_task , train_knn_optuna_minio_task] >> seleccionar_mejor_modelo_task >> predict_datos_actuales_task >> test_fastapi_endpoints
 
