@@ -9,13 +9,16 @@ Este proyecto orquesta un flujo completo de procesamiento de datos y entrenamien
 
 ```
 .
-├── dags/                       # DAGs de Airflow
-├── scripts/                    # Scripts auxiliares
-├── logs/                       # Carpeta ignorada por Git (Airflow logs)
-├── datalake/                   # Carpeta local para almacenamiento temporal
-├── docker-compose.yml          # Definición de servicios
-├── mlflow/                     # Artefactos y base de MLflow
-└── .gitignore                  # Ignora logs, datalake, mlflow, etc.
+├── dags/                   # DAGs de Airflow
+├── fastapi_app/             # App de FastAPI para servir el modelo
+│   ├── app.py               # API principal
+│   ├── schemas.py           # Esquemas de entrada
+├── mlflow/                  # Carpeta local para MLflow tracking
+├── datalake/                # Datalake local (usado por MinIO)
+├── docker-compose.yml       # Definición de servicios
+├── Dockerfile.fastapi       # Imagen de la app de FastAPI
+├── .env                     # Variables de entorno
+└── .gitignore               # Ignorar archivos temporales
 ```
 
 ---
@@ -107,31 +110,8 @@ git push
 ```
 
 ---
-# 🛠️ Proyecto Airflow + MinIO + ML Pipeline + FastAPI
 
-Este proyecto orquesta un flujo completo de procesamiento de datos, entrenamiento y deploy de modelos usando:
-- **Apache Airflow** (orquestación)
-- **MinIO** (storage tipo S3)
-- **MLflow** (tracking de experimentos)
-- **FastAPI** (servir el modelo en producción)
 
-Todo el ecosistema corre en **Docker Compose**.
-
-## 📦 Estructura del Proyecto
-
-```
-.
-├── dags/                   # DAGs de Airflow
-├── fastapi_app/             # App de FastAPI para servir el modelo
-│   ├── app.py               # API principal
-│   ├── schemas.py           # Esquemas de entrada
-├── mlflow/                  # Carpeta local para MLflow tracking
-├── datalake/                # Datalake local (usado por MinIO)
-├── docker-compose.yml       # Definición de servicios
-├── Dockerfile.fastapi       # Imagen de la app de FastAPI
-├── .env                     # Variables de entorno
-└── .gitignore               # Ignorar archivos temporales
-```
 
 ## 🐍 FastAPI para servir modelos
 
