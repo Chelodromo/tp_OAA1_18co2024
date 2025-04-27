@@ -116,7 +116,7 @@ def batch_predict():
 
         s3_client.put_object(
             Bucket=bucket_name,
-            Key="respaldo/modelos/nuevo_predicciones.json",
+            Key="modelos/nuevo_predicciones.json",
             Body=buffer.getvalue()
         )
 
