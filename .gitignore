@@ -1,2 +1,4 @@
 # Ignorar los logs de Airflow
 logs/
+mlflow/
+datalake/

@@ -317,58 +317,7 @@ def split_dataset_minio(**kwargs):
             )
             print(f"✅ Archivo {filename} subido a MinIO en splits/{filename}")
             
-def svm_modeling_minio(**kwargs):
-    bucket_name = 'respaldo2'  # Tu bucket en MinIO
-    splits_path = 'splits'     # Carpeta donde están los splits
-    aws_conn_id = 'minio_s3'    # Conexión Airflow-MinIO
 
-    hook = S3Hook(aws_conn_id=aws_conn_id)
-
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        print(f"📁 Usando directorio temporal: {tmpdirname}")
-
-        # Archivos a descargar
-        archivos = ['X_train.json', 'X_test.json', 'y_train.json', 'y_test.json']
-        rutas_locales = {}
-
-        for archivo in archivos:
-            s3_key = f'{splits_path}/{archivo}'
-            local_path = os.path.join(tmpdirname, archivo)
-
-            file_content = hook.read_key(key=s3_key, bucket_name=bucket_name)
-            with open(local_path, 'w', encoding='utf-8') as f:
-                f.write(file_content)
-            rutas_locales[archivo] = local_path
-
-            print(f"✅ Archivo {archivo} descargado en {local_path}")
-
-        # Cargar los datos
-        X_train_svm = pd.read_json(rutas_locales['X_train.json'])
-        X_test_svm = pd.read_json(rutas_locales['X_test.json'])
-        y_train_svm = pd.read_json(rutas_locales['y_train.json'], typ='series')
-        y_test_svm = pd.read_json(rutas_locales['y_test.json'], typ='series')
-
-        # Escalar features
-        scaler = StandardScaler()
-        X_train_svm = scaler.fit_transform(X_train_svm)
-        X_test_svm = scaler.transform(X_test_svm)
-
-        # Crear y entrenar el modelo SVM
-        svm_linear = SVC(C=0.001, kernel='linear')
-        svm_linear.fit(X_train_svm, y_train_svm)
-
-        # Validación cruzada
-        scores = cross_val_score(svm_linear, X_train_svm, y_train_svm, cv=5, scoring='accuracy')
-        print("\n🔁 Cross-validation scores:", scores)
-        print("📊 Cross-validation mean accuracy:", scores.mean())
-
-        # Predicciones en test
-        y_pred_svm = svm_linear.predict(X_test_svm)
-
-        # Matriz de confusión
-        print("\n🔍 Confusion Matrix:")
-        print(confusion_matrix(y_test_svm, y_pred_svm))  
-        
 def simple_mlflow_run(**kwargs):
     mlflow.set_tracking_uri("http://mlflow:5000")
     mlflow.set_experiment("test_airflow_experiment")
@@ -791,6 +740,90 @@ def train_knn_optuna_minio(**kwargs):
             replace=True
         )
         print(f"✅ Modelo subido a MinIO en modelos/knn_model.pkl")
+        
+def seleccionar_mejor_modelo(**kwargs):
+    import os
+    import tempfile
+    import mlflow
+    import pickle
+    from datetime import datetime
+    from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+    from mlflow.tracking import MlflowClient
+
+    mlflow.set_tracking_uri("http://mlflow:5000")
+
+    client = MlflowClient()
+
+    experiment_names = [
+        "lightgbm_experiment",
+        "randomforest_experiment",
+        "logisticregression_experiment",
+        "knn_experiment"
+    ]
+
+    best_score = -1
+    best_experiment_name = None
+    best_run_id = None
+
+    for exp_name in experiment_names:
+        experiment = client.get_experiment_by_name(exp_name)
+        if experiment:
+            runs = client.search_runs(
+                experiment_ids=[experiment.experiment_id],
+                order_by=["metrics.recall DESC"],
+                max_results=1
+            )
+            if runs:
+                top_run = runs[0]
+                recall = top_run.data.metrics.get('recall', 0)
+                print(f"🔍 {exp_name}: Recall = {recall:.4f}")
+                if recall > best_score:
+                    best_score = recall
+                    best_experiment_name = exp_name
+                    best_run_id = top_run.info.run_id
+
+    if not best_run_id:
+        raise Exception("❌ No se encontró ningún modelo entrenado.")
+
+    print(f"\n🏆 Mejor modelo: {best_experiment_name} con Recall: {best_score:.4f}")
+    print(f"📦 Run ID: {best_run_id}")
+
+    # Configuración de MinIO
+    bucket_name = 'respaldo2'
+    hook = S3Hook(aws_conn_id='minio_s3')
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        print(f"📁 Usando directorio temporal: {tmpdir}")
+
+        # Preparar nombre del modelo
+        modelo_name = best_experiment_name.replace('_experiment', '')
+        key_modelo = f"modelos/{modelo_name}_model.pkl"
+
+        # Descargar modelo
+        local_model_path = os.path.join(tmpdir, f"{modelo_name}_model.pkl")
+        obj = hook.get_key(key=key_modelo, bucket_name=bucket_name)
+        with open(local_model_path, 'wb') as f:
+            f.write(obj.get()['Body'].read())
+
+        print(f"✅ Modelo descargado: {local_model_path}")
+
+        # Armar timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        best_model_key = f"best_model/{modelo_name}_{timestamp}.pkl"
+
+        # Subir modelo con timestamp
+        hook.load_file(
+            filename=local_model_path,
+            key=best_model_key,
+            bucket_name=bucket_name,
+            replace=True
+        )
+
+        print(f"🚀 Mejor modelo subido como {best_model_key}")
+
+
+
+
 
 
 # DAG definition
@@ -847,12 +880,7 @@ with DAG(
     provide_context=True,
     dag=dag
 )
-    svm_modeling_task_minio = PythonOperator(
-    task_id='svm_modeling_minio',
-    python_callable=svm_modeling_minio,
-    provide_context=True,
-    dag=dag
-)
+
     run_test = PythonOperator(
         task_id="mlflow_test_run",
         python_callable=simple_mlflow_run,
@@ -885,9 +913,15 @@ train_knn_optuna_minio_task = PythonOperator(
     dag=dag
 )
 
+seleccionar_mejor_modelo_task = PythonOperator(
+    task_id='seleccionar_mejor_modelo',
+    python_callable=seleccionar_mejor_modelo,
+    provide_context=True,
+    dag=dag
+)
 
 
 
 descargar_csv >> mostrar_head >> split_dataset_task >> svm_modeling_task
-probar_minio >> descargar_dataset >> procesar_dataset >> split_dataset_task_minio >> svm_modeling_task_minio >> run_test >> [train_lightgbm_task, train_randomforest_task, train_logisticregression_task , train_knn_optuna_minio_task]
+probar_minio >> descargar_dataset >> procesar_dataset >> split_dataset_task_minio >> run_test >> [train_lightgbm_task, train_randomforest_task, train_logisticregression_task , train_knn_optuna_minio_task] >> seleccionar_mejor_modelo_task
 
