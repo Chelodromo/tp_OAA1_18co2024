@@ -430,5 +430,6 @@ with DAG(
     dag=dag
 )
 
-    probar_minio >> descargar_dataset >> mostrar_head >> split_dataset_task >> svm_modeling_task >> procesar_dataset >> split_dataset_task_minio >> svm_modeling_task_minio
-    
+probar_minio >> descargar_dataset >> procesar_dataset >> split_dataset_task_minio >> svm_modeling_task_minio
+
+descargar_csv >> mostrar_head >> split_dataset_task >> svm_modeling_task
