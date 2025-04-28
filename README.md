@@ -230,13 +230,4 @@ La aplicación **Streamlit** permite a los usuarios **interactuar de forma gráf
 
 ---
 
-### 🚀 Cómo levantar la app de Streamlit
-
-La app de Streamlit está totalmente dockerizada. Para levantarla:
-
-```bash
-docker-compose up --build
----
-
-💭 *Proyecto de referencia integrando orquestación, almacenamiento, tracking de modelos y APIs de inferencia en producción.*
 
