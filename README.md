@@ -192,6 +192,7 @@ Accesos:
 - **FastAPI**: [http://localhost:8000/docs](http://localhost:8000/docs)
 - **MinIO Console**: [http://localhost:9001](http://localhost:9001)
 - **MLflow Tracking**: [http://localhost:5001](http://localhost:5001)
+- **Streamlit APP**: [http://localhost:8501](http://localhost:8501)
 
 
 ## 🔧 Servicios Docker
@@ -234,19 +235,15 @@ La aplicación **Streamlit** permite a los usuarios **interactuar de forma gráf
 
 > *(Podés agregar capturas en una carpeta `capturas/` dentro del repo, y luego insertarlas así:)*
 
-- **Pantalla principal:**
+- **Formulario Manual:**
   
   ![Inicio Streamlit](capturas/03_strlit_image.png)
   ![Inicio Streamlit](capturas/04_strlit_image.png)
 
-- **Formulario Manual:**
-
-  ![Formulario de carga individual](capturas/streamlit_formulario.png)
-
 - **Carga de CSV y Predicciones Batch:**
 
-  ![Carga Batch CSV](01_strlit_image.png)
-  ![Carga Batch CSV](02_strlit_image.png)
+  ![Carga Batch CSV](capturas/01_strlit_image.png)
+  ![Carga Batch CSV](capturas/02_strlit_image.png)
 
 ---
 
