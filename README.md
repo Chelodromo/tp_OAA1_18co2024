@@ -189,6 +189,7 @@ Accesos:
 | Redis             | 6379             | Broker de Airflow              |
 | MLflow            | 5001             | Tracking server de MLflow      |
 | FastAPI           | 8000             | API REST para predicciones     |
+| Streamlit         | 8501             | Aplicacion para usar el modelo     |
 
 ## 🎨 Streamlit App
 
