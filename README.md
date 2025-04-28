@@ -207,12 +207,55 @@ Accesos:
 | MLflow            | 5001             | Tracking server de MLflow      |
 | FastAPI           | 8000             | API REST para predicciones     |
 
+## 🎨 Streamlit App
 
-## 🚧 Proximamente
-- Agregar versionado de modelos (MLflow registry)
-- Tests automáticos CI/CD
-- Escalabilidad a Kubernetes (opcional)
+La aplicación **Streamlit** permite a los usuarios **interactuar de forma gráfica** con el modelo de Machine Learning servido por FastAPI:
 
+- **Modo Individual**:
+  - El usuario puede completar **manual** un formulario con las variables de entrada (`TempOut`, `DewPt`, `WSpeed`, `WHSpeed`, etc.).
+  - Luego, puede enviar esos datos y obtener una predicción instantánea usando el endpoint `/predict`.
+
+- **Modo Batch**:
+  - Permite **subir un archivo CSV** con múltiples registros a predecir.
+  - El backend consulta al endpoint `/predict_batch` y muestra el resultado de cada predicción.
+  - También convierte automáticamente el campo `Date_num` (timestamp) a una fecha amigable en formato `dd-mm-yyyy` junto a la probabilidad estimada.
+
+### ⚙️ Características principales:
+
+- 📥 Carga manual de variables.
+- 📄 Subida de archivos `.csv`.
+- 📊 Visualización de probabilidades por fecha.
+- ⚡ Rápida conexión a la API.
+- 📅 Conversión automática de `Date_num` a fecha humana.
+
+---
+
+### 🖥️ Capturas de Pantalla (sugerido)
+
+> *(Podés agregar capturas en una carpeta `capturas/` dentro del repo, y luego insertarlas así:)*
+
+- **Pantalla principal:**
+  
+  ![Inicio Streamlit](capturas/03_strlit_image.png)
+  ![Inicio Streamlit](capturas/04_strlit_image.png)
+
+- **Formulario Manual:**
+
+  ![Formulario de carga individual](capturas/streamlit_formulario.png)
+
+- **Carga de CSV y Predicciones Batch:**
+
+  ![Carga Batch CSV](01_strlit_image.png)
+  ![Carga Batch CSV](02_strlit_image.png)
+
+---
+
+### 🚀 Cómo levantar la app de Streamlit
+
+La app de Streamlit está totalmente dockerizada. Para levantarla:
+
+```bash
+docker-compose up --build
 ---
 
 💭 *Proyecto de referencia integrando orquestación, almacenamiento, tracking de modelos y APIs de inferencia en producción.*

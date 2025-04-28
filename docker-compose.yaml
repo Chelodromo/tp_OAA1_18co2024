@@ -349,7 +349,16 @@ services:
       - MINIO_SECRET_KEY=minio_admin
     command: ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
 
-
+  streamlit_app:
+    build:
+      context: ./streamlit_app
+    container_name: tp_oaa1_18co2024-streamlit_app
+    ports:
+      - "8501:8501"
+    depends_on:
+      - fastapi_app
+    restart: always
+    
 volumes:
   postgres-db-volume:
   minio_data:

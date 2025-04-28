@@ -10,6 +10,7 @@ import os
 import pickle
 from fastapi import Body
 from typing import List
+from datetime import datetime
 
 app = FastAPI()
 
@@ -69,15 +70,20 @@ def predict(data: PredictRequest):
     return {"probability": proba_positive_class.tolist()}
 
 @app.post("/predict_batch")
-def predict_batch(data: List[PredictRequest] = Body(...)):
-    """
-    Recibe una lista de registros y devuelve las probabilidades para cada uno.
-    """
-    # Convertir la lista de registros en un DataFrame
-    df = pd.DataFrame([item.dict() for item in data])
-    
-    # Predicción de probabilidades
-    proba = model.predict_proba(df)
-    proba_positive_class = proba[:, 1]  # Tomar la columna de la clase positiva
+def predict_batch(data: List[PredictRequest]):
+    df = pd.DataFrame([d.dict() for d in data])
 
-    return {"probabilities": proba_positive_class.tolist()}
+    preds_proba = model.predict_proba(df)[:, 1]  # Clase positiva
+
+    # Convertir Date_num a fecha
+    dates = df['Date_num'].apply(lambda ts: datetime.fromtimestamp(ts).strftime('%d-%m-%Y'))
+
+    # Preparar respuesta
+    results = []
+    for date, proba in zip(dates, preds_proba):
+        results.append({
+            "date": date,
+            "probability": round(float(proba), 4)
+        })
+
+    return {"predictions": results}
