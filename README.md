@@ -98,7 +98,7 @@ AIRFLOW_CONN_MINIO_S3=s3://minio_admin:minioa_dmin@minio:9000/?endpoint_url=http
 - **Documentación Swagger**: `http://localhost:8000/docs`
 
 ### Endpoints disponibles
-
+  ![fastapi](capturas/01_fastapi.png)
 - **POST** `/predict`
   - Recibe un único registro para predecir.
   - **Ejemplo de input**:
