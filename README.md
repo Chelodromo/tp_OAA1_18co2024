@@ -55,6 +55,16 @@ Este proyecto orquesta un flujo completo de procesamiento de datos y entrenamien
    - Evalúa todos los experimentos en MLflow según la métrica **Recall**.
    - Selecciona el mejor modelo.
    - Descarga su `pkl` y lo sube a MinIO en la carpeta `best_model/` (con timestamp en el nombre).
+   - 
+6. **`predict_datos_actuales`**
+   - Se conecta con una API para tomar datos actuales.
+   - Genera un dataset que pueda probado con el mejor modelo.
+   - Devuelve las predicciones en modo Batch en un print en el log.
+
+6. **`test_fastapi_endpoints`**
+   - Se crearon 2 endpoint en FastApi, mono manual y modo batch.
+   - Esta tarea testea los endpoints con datos actuales.
+   - Se imprime en el log la prueba de FastApi.
 
 ---
 
