@@ -72,13 +72,15 @@ Este proyecto orquesta un flujo completo de procesamiento de datos y entrenamien
 
 - **Console**: [http://localhost:9001](http://localhost:9001)
 - **API**: [http://localhost:9000](http://localhost:9000)
-- **Usuario/Contraseña**: `minioadmin/minioadmin`
+- **Usuario/Contraseña**: `minio_admin/minio_admin`
 - **Bucket**: `respaldo2`
+
+  ![Minio](capturas/01_Minio.png)
 
 Airflow usa esta conexión:
 
 ```yaml
-AIRFLOW_CONN_MINIO_S3=s3://minioadmin:minioadmin@minio:9000/?endpoint_url=http%3A%2F%2Fminio%3A9000
+AIRFLOW_CONN_MINIO_S3=s3://minio_admin:minioa_dmin@minio:9000/?endpoint_url=http%3A%2F%2Fminio%3A9000
 ```
 
 ---
