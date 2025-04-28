@@ -80,88 +80,6 @@ def leer_y_loguear():
     print(f"\n💾 Dataset respaldado como JSON en: {backup_path}")
 
 
-def split_dataset():
-    import pandas as pd
-    from sklearn.model_selection import train_test_split
-
-    json_path = "/opt/airflow/datalake/df_procesado.json"
-
-    # Leer JSON
-    df_polvo_svm = pd.read_json(json_path)
-
-    # Asegurar que la columna 'date' esté en datetime y renombrarla a 'Date' si fuera necesario
-    if 'date' in df_polvo_svm.columns:
-        df_polvo_svm = df_polvo_svm.rename(columns={'date': 'Date'})
-
-    df_polvo_svm['Date_num'] = df_polvo_svm['Date'].apply(lambda x: x.timestamp())
-    df_polvo_svm['Date_num'] = pd.to_numeric(df_polvo_svm['Date_num'], errors='coerce')
-
-    # Drop columnas innecesarias
-    columnas_a_eliminar = ['Date', 'Punto', 'HiTemp', 'LowTemp', 'WTx', 'SolRate', 'SolRad.', 'arcInt']
-    df_polvo_svm = df_polvo_svm.drop(columns=[c for c in columnas_a_eliminar if c in df_polvo_svm.columns])
-
-    print(df_polvo_svm.info())
-    # Separar features y target
-    X = df_polvo_svm.drop(columns=['clase'])
-    print(X.info())
-    y = df_polvo_svm.iloc[:, -2]
-    print(y)
-
-    # Split con stratify
-    X_train_svm, X_test_svm, y_train_svm, y_test_svm = train_test_split(
-        X, y, stratify=y, test_size=0.3, random_state=42
-    )
-
-    print("✅ Split realizado con éxito.")
-    print("📊 Tamaño del conjunto de entrenamiento:", len(X_train_svm))
-    print("📈 Tamaño del conjunto de prueba:", len(X_test_svm))
-    
-    # Guardar como JSON
-    X_train_svm.to_json(os.path.join(output_dir, "X_train.json"), orient="records")
-    X_test_svm.to_json(os.path.join(output_dir, "X_test.json"), orient="records")
-    y_train_svm.to_json(os.path.join(output_dir, "y_train.json"), orient="records")
-    y_test_svm.to_json(os.path.join(output_dir, "y_test.json"), orient="records")
-
-    print("✅ Split realizado y archivos guardados en /opt/airflow/datalake.")
-    print("📦 Archivos creados: X_train.json, X_test.json, y_train.json, y_test.json")
-
-
-def svm_modeling():
-    import pandas as pd
-    from sklearn.preprocessing import StandardScaler
-    from sklearn.svm import SVC
-    from sklearn.model_selection import cross_val_score
-    from sklearn.metrics import confusion_matrix
-
-    # Cargar los datos desde los JSON
-    path = "/opt/airflow/datalake"
-    X_train_svm = pd.read_json(f"{path}/X_train.json")
-    X_test_svm = pd.read_json(f"{path}/X_test.json")
-    y_train_svm = pd.read_json(f"{path}/y_train.json", typ='series')
-    y_test_svm = pd.read_json(f"{path}/y_test.json", typ='series')
-
-    # Escalar
-    scaler = StandardScaler()
-    X_train_svm = scaler.fit_transform(X_train_svm)
-    X_test_svm = scaler.transform(X_test_svm)
-
-    # Modelo SVM
-    svm_linear = SVC(C=0.001, kernel='linear')
-    svm_linear.fit(X_train_svm, y_train_svm)
-
-    # Validación cruzada
-    scores = cross_val_score(svm_linear, X_train_svm, y_train_svm, cv=5, scoring='accuracy')
-    print("\n🔁 Cross-validation scores:", scores)
-    print("📊 Cross-validation mean accuracy:", scores.mean())
-
-    # Predicciones
-    y_pred_svm = svm_linear.predict(X_test_svm)
-
-    # Matriz de confusión
-    print("\n🔍 Confusion Matrix:")
-    print(confusion_matrix(y_test_svm, y_pred_svm))
-
-
 def descargar_dataset(**kwargs):
     # URL del archivo a descargar
     url = 'https://docs.google.com/uc?export=download&id=1gT8k90Iisd-sZVXWtS6Exl1ZFwwTd_WM'
@@ -191,7 +109,6 @@ def descargar_dataset(**kwargs):
             replace=True  # Reemplaza si ya existe
         )
         print(f"✅ Archivo {nombre_archivo_local} subido correctamente a {bucket_name}/{s3_key}")
-
 
 def leer_y_loguear_minio(**kwargs):
     bucket_name = 'respaldo2'
@@ -975,7 +892,7 @@ def test_endpoints_predict(**kwargs):
 
 # DAG definition
 with DAG(
-    dag_id="descargar_y_ver_dataset",
+    dag_id="mlops_prediccion-polvo",
     start_date=datetime(2024, 1, 1),
     schedule_interval=None,
     catchup=False
@@ -986,35 +903,13 @@ with DAG(
         python_callable=ejemplo_conexion_s3)
 
 
-    descargar_csv = BashOperator(
-        task_id='descargar_csv',
-        bash_command=(
-            f"mkdir -p /opt/airflow/datalake && "
-            f"curl -L -o {DATA_PATH} "
-            "'https://docs.google.com/uc?export=download&id=1gT8k90Iisd-sZVXWtS6Exl1ZFwwTd_WM'"
-        )
-    )
-
     descargar_dataset = PythonOperator(
         task_id='descargar_dataset',
         python_callable=descargar_dataset,
         provide_context=True  # Si usás **kwargs, esto es necesario
     )
 
-    mostrar_head = PythonOperator(
-        task_id='mostrar_head',
-        python_callable=leer_y_loguear
-    )
-    
-    split_dataset_task = PythonOperator(
-    task_id='split_dataset',
-    python_callable=split_dataset
-)
-    svm_modeling_task = PythonOperator(
-    task_id='svm_modeling',
-    python_callable=svm_modeling
-)
-    
+
     procesar_dataset = PythonOperator(
         task_id='procesar_dataset',
         python_callable=leer_y_loguear_minio,
@@ -1046,40 +941,39 @@ with DAG(
     provide_context=True,
     dag=dag
 )
-train_logisticregression_task = PythonOperator(
+    train_logisticregression_task = PythonOperator(
     task_id='train_logisticregression_optuna_minio',
     python_callable=train_logisticregression_optuna_minio,
     provide_context=True,
     dag=dag
 )
 
-train_knn_optuna_minio_task = PythonOperator(
+    train_knn_optuna_minio_task = PythonOperator(
     task_id='train_knn_optuna_minio',
     python_callable=train_knn_optuna_minio,
     provide_context=True,
     dag=dag
 )
 
-seleccionar_mejor_modelo_task = PythonOperator(
+    seleccionar_mejor_modelo_task = PythonOperator(
     task_id='seleccionar_mejor_modelo',
     python_callable=seleccionar_mejor_modelo,
     provide_context=True,
     dag=dag
 )
 
-predict_datos_actuales_task = PythonOperator(
+    predict_datos_actuales_task = PythonOperator(
     task_id='predict_datos_actuales',
     python_callable=predict_datos_actuales,
     dag=dag,
 )
 
-test_fastapi_endpoints = PythonOperator(
+    test_fastapi_endpoints = PythonOperator(
     task_id="test_fastapi_endpoints",
     python_callable=test_endpoints_predict,
     provide_context=True,
     dag=dag
 )
 
-descargar_csv >> mostrar_head >> split_dataset_task >> svm_modeling_task
 probar_minio >> descargar_dataset >> procesar_dataset >> split_dataset_task_minio >> run_test >> [train_lightgbm_task, train_randomforest_task, train_logisticregression_task , train_knn_optuna_minio_task] >> seleccionar_mejor_modelo_task >> predict_datos_actuales_task >> test_fastapi_endpoints
 
