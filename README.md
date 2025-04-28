@@ -148,10 +148,13 @@ AIRFLOW_CONN_MINIO_S3=s3://minio_admin:minioa_dmin@minio:9000/?endpoint_url=http
 
 - **Respuesta**:
 ```json
-{
-  "prediction": [false, true]
-}
+{'probability': [0.2591254417393721]}
 ```
+
+```json
+{'predictions': [{'date': '01-04-2025', 'probability': 0.2295}, {'date': '02-04-2025', 'probability': 0.1841}, {'date': '03-04-2025', 'probability': 0.2691}, {'date': '04-04-2025', 'probability': 0.164}, {'date': '05-04-2025', 'probability': 0.0861}, {'date': '06-04-2025', 'probability': 0.2048}, {'date': '07-04-2025', 'probability': 0.2271}, {'date': '08-04-2025', 'probability': 0.29}, {'date': '09-04-2025', 'probability': 0.2254}, {'date': '10-04-2025', 'probability': 0.2329}, {'date': '11-04-2025', 'probability': 0.1346}, {'date': '12-04-2025', 'probability': 0.1463}, {'date': '13-04-2025', 'probability': 0.1244}, {'date': '14-04-2025', 'probability': 0.0936}, {'date': '15-04-2025', 'probability': 0.1521}, {'date': '16-04-2025', 'probability': 0.1187}, {'date': '17-04-2025', 'probability': 0.2921}, {'date': '18-04-2025', 'probability': 0.1584}, {'date': '19-04-2025', 'probability': 0.1557}, {'date': '20-04-2025', 'probability': 0.227}, {'date': '21-04-2025', 'probability': 0.2463}, {'date': '22-04-2025', 'probability': 0.2717}, {'date': '23-04-2025', 'probability': 0.3901}, {'date': '24-04-2025', 'probability': 0.1684}, {'date': '25-04-2025', 'probability': 0.065}, {'date': '26-04-2025', 'probability': 0.25}, {'date': '27-04-2025', 'probability': 0.2017}]}
+```
+
 
 ### 🔄 Actualización Dinámica del Modelo
 
