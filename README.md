@@ -29,6 +29,7 @@ Este proyecto orquesta un flujo completo de procesamiento de datos y entrenamien
 ---
 
 ## 🔁 Flujo del DAG principal (`descargar_y_ver_dataset`)
+  ![airflow](capturas/01_airflow.png)
 
 1. **`probar_minio`**
    - Crea bucket `respaldo2` si no existe en MinIO.
