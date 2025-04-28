@@ -12,12 +12,17 @@ Este proyecto orquesta un flujo completo de procesamiento de datos y entrenamien
 ├── dags/                   # DAGs de Airflow
 ├── fastapi_app/             # App de FastAPI para servir el modelo
 │   ├── app.py               # API principal
-│   ├── schemas.py           # Esquemas de entrada
+│   ├── Dockerfile           # Contenedor streamlit
+│   ├── requirements.txt           # requerimientos del contenedor
+│   ├── datos_actuales.ipynb       # Jupyter Notebook para testear la API
+├── streamlit_app_app/             # App de FastAPI para servir el modelo
+│   ├── app.py               # App principal
+│   ├── Dockerfile           # Contenedor streamlit
+│   ├── requirements.txt           # requerimientos del contenedor
+│   ├── Dockerfile           # Contenedor streamlit
+│   ├── data.csv             # datos para probar la app en modo batch
 ├── mlflow/                  # Carpeta local para MLflow tracking
-├── datalake/                # Datalake local (usado por MinIO)
 ├── docker-compose.yml       # Definición de servicios
-├── Dockerfile.fastapi       # Imagen de la app de FastAPI
-├── .env                     # Variables de entorno
 └── .gitignore               # Ignorar archivos temporales
 ```
 
