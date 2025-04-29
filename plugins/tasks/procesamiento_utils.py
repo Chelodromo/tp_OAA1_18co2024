@@ -100,6 +100,7 @@ def split_dataset_minio(**kwargs):
         df_polvo_svm = df_polvo_svm.drop(columns=[c for c in columnas_a_eliminar if c in df_polvo_svm.columns])
 
         X = df_polvo_svm.drop(columns=['clase'])
+        print(X.info())
         y = df_polvo_svm['clase']
 
         X_train, X_test, y_train, y_test = train_test_split(

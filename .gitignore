@@ -2,3 +2,7 @@
 logs/
 mlflow/
 datalake/
+plugins/tasks/__pycache__/
+dags/.DS_Store
+.DS_Store
+plugins/.DS_Store

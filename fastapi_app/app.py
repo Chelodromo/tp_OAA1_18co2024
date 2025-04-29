@@ -26,7 +26,7 @@ model = None
 
 class PredictRequest(BaseModel):
     TempOut: float
-    DewPt_: float
+    DewPt.: float
     WSpeed: float
     WHSpeed: float
     Bar: float

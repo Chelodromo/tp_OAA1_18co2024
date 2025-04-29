@@ -8,6 +8,7 @@ import mlflow
 from mlflow.tracking import MlflowClient
 from datetime import datetime
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+import boto3
 
 def seleccionar_mejor_modelo(**kwargs):
     mlflow.set_tracking_uri("http://mlflow:5000")
@@ -70,7 +71,36 @@ def seleccionar_mejor_modelo(**kwargs):
         )
         print(f"🚀 Mejor modelo subido como {best_model_key}")
 
+# Variables de entorno necesarias
+MINIO_ENDPOINT = os.getenv('MINIO_ENDPOINT', 'minio:9000')
+MINIO_ACCESS_KEY = os.getenv('MINIO_ACCESS_KEY', 'minio_admin')
+MINIO_SECRET_KEY = os.getenv('MINIO_SECRET_KEY', 'minio_admin')
+BUCKET_NAME = os.getenv('BUCKET_NAME', 'respaldo2')
+PREFIX = os.getenv('PREFIX', 'best_model/')
+
+def load_latest_model_from_minio():
+    """Carga el último modelo almacenado en MinIO."""
+    s3 = boto3.client('s3',
+                      endpoint_url=f'http://{MINIO_ENDPOINT}',
+                      aws_access_key_id=MINIO_ACCESS_KEY,
+                      aws_secret_access_key=MINIO_SECRET_KEY)
+    response = s3.list_objects_v2(Bucket=BUCKET_NAME, Prefix=PREFIX)
+    files = [obj['Key'] for obj in response.get('Contents', []) if obj['Key'].endswith('.pkl')]
+    if not files:
+        raise Exception("No se encontraron modelos en MinIO.")
+    latest_file = sorted(files)[-1]
+    print(latest_file)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_path = os.path.join(tmpdir, os.path.basename(latest_file))
+        s3.download_file(BUCKET_NAME, latest_file, tmp_path)
+        with open(tmp_path, 'rb') as f:
+            model = pickle.load(f)
+    return model
+
 def predict_datos_actuales(**kwargs):
+    """Obtiene datos actuales, carga el último modelo desde MinIO y predice."""
+    # Autenticación contra la API externa
     user = "ricardoq"
     pswd = "eLxdr3FZ51DE"
     auth_url = 'https://tca-ssrm.com/api/auth'
@@ -81,16 +111,17 @@ def predict_datos_actuales(**kwargs):
     auth_token = auth_response.json()['token']
     headers = {"Authorization": f"Token {auth_token}"}
 
+    # Consulta de datos
     base_url = "https://tca-ssrm.com/api"
     report_url = f"{base_url}/estaciones/registros/reporte?estacion_id=164144&fecha_de_inicio=2025-04-01T00:00:00&periodo=1%20Mes&page_size=50&page=1&order_by=fecha&mode=hi"
-
     response = requests.get(report_url, headers=headers)
     response.raise_for_status()
 
     df_raw = pd.DataFrame(response.json()['data']['rows'], columns=response.json()['data']['header']).reset_index(drop=True)
-    df_raw = df_raw.iloc[:-1]
+    df_raw = df_raw.iloc[:-1]  # Eliminar la última fila si corresponde
     fechas = df_raw['Date'].tolist()
 
+    # Procesamiento del DataFrame
     columnas_a_mantener = [
         'Date', 'Avg Temp ºC', 'Avg DEW PT ºC', 'Avg Wind Speed km/h',
         'Max wind Speed km/h', 'Pressure HPA', 'Precip. mm', 'ET mm', 'Wind dir'
@@ -109,31 +140,26 @@ def predict_datos_actuales(**kwargs):
         'Wind dir': 'WDir_deg'
     })
 
-    hook = S3Hook(aws_conn_id='minio_s3')
-    bucket_name = 'respaldo2'
+    # Carga del último modelo desde MinIO
+    model = load_latest_model_from_minio()
 
-    all_models = hook.list_keys(bucket_name=bucket_name, prefix='best_model/')
-    model_files = [k for k in all_models if k.endswith('.pkl')]
-    latest_model = sorted(model_files, reverse=True)[0]
+    # Predicción
+    if 'lightgbm' in str(type(model)).lower():
+        print("🔵 Modelo detectado: LightGBM Booster")
+        proba = model.predict(df, raw_score=False)  # raw_score=False asegura que sean probabilidades
+    elif hasattr(model, 'predict_proba'):
+        print("🟢 Modelo detectado: Scikit-learn con predict_proba")
+        proba = model.predict_proba(df)[:, 1]
+    else:
+        print("🟠 Modelo detectado: predict simple")
+        proba = model.predict(df)
 
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        local_model_path = os.path.join(tmpdirname, os.path.basename(latest_model))
-        hook.get_conn().download_file(
-            Bucket=bucket_name,
-            Key=latest_model,
-            Filename=local_model_path
-        )
+    for fecha, p in zip(fechas, proba):
+        print(f"📅 Fecha: {fecha} - 🔮 Probabilidad de clase positiva: {p:.4f}")
 
-        with open(local_model_path, 'rb') as f:
-            model = pickle.load(f)
 
-        if hasattr(model, 'predict_proba'):
-            proba = model.predict_proba(df)[:, 1]
-        else:
-            proba = model.predict(df)
 
-        for fecha, p in zip(fechas, proba):
-            print(f"📅 Fecha: {fecha} - 🔮 Probabilidad de clase positiva: {p:.4f}")
+
 
 def test_endpoints_predict(**kwargs):
     user = "ricardoq"
