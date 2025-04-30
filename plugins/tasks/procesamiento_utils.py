@@ -98,7 +98,7 @@ def split_dataset_minio(**kwargs):
             'inDew', 'iHeat', 'WSamp', 'iRecept', 'HWDir_deg'
         ]
         df_polvo_svm = df_polvo_svm.drop(columns=[c for c in columnas_a_eliminar if c in df_polvo_svm.columns])
-
+        df_polvo_svm = df_polvo_svm.rename(columns={"DewPt.": "DewPt"})
         X = df_polvo_svm.drop(columns=['clase'])
         print(X.info())
         y = df_polvo_svm['clase']
@@ -106,6 +106,7 @@ def split_dataset_minio(**kwargs):
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, stratify=y, test_size=0.3, random_state=42
         )
+        print(X_train.info())
 
         splits = {
             "X_train.json": X_train,

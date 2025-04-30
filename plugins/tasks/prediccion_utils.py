@@ -131,7 +131,7 @@ def predict_datos_actuales(**kwargs):
     df = df.drop(columns=['Date'])
     df = df.rename(columns={
         'Avg Temp ºC': 'TempOut',
-        'Avg DEW PT ºC': 'DewPt.',
+        'Avg DEW PT ºC': 'DewPt',
         'Avg Wind Speed km/h': 'WSpeed',
         'Max wind Speed km/h': 'WHSpeed',
         'Pressure HPA': 'Bar',
@@ -186,7 +186,7 @@ def test_endpoints_predict(**kwargs):
     df = df.drop(columns=['Date'])
     df = df.rename(columns={
         'Avg Temp ºC': 'TempOut',
-        'Avg DEW PT ºC': 'DewPt_',
+        'Avg DEW PT ºC': 'DewPt',
         'Avg Wind Speed km/h': 'WSpeed',
         'Max wind Speed km/h': 'WHSpeed',
         'Pressure HPA': 'Bar',

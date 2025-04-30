@@ -19,70 +19,95 @@ def simple_mlflow_run(**kwargs):
         print("✅ MLflow test: parámetro y métrica registrados.")
 
 def train_lightgbm_optuna_minio(**kwargs):
-    import lightgbm as lgb
-    from mlflow import lightgbm as mlflow_lgb
+    import os
+    import tempfile
+    import pickle
+    import pandas as pd
+    import optuna
+    from sklearn.metrics import recall_score
+    from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+    from lightgbm import LGBMClassifier
+    import mlflow
+    import mlflow.sklearn as mlflow_sklearn
 
     bucket_name = 'respaldo2'
     splits_path = 'splits'
     aws_conn_id = 'minio_s3'
     hook = S3Hook(aws_conn_id=aws_conn_id)
 
+    # Descarga los splits desde MinIO
     with tempfile.TemporaryDirectory() as tmpdir:
         archivos = ['X_train.json', 'X_test.json', 'y_train.json', 'y_test.json']
-        paths_locales = {}
+        paths = {}
         for archivo in archivos:
             content = hook.read_key(key=f"{splits_path}/{archivo}", bucket_name=bucket_name)
             local_path = os.path.join(tmpdir, archivo)
             with open(local_path, 'w', encoding='utf-8') as f:
                 f.write(content)
-            paths_locales[archivo] = local_path
+            paths[archivo] = local_path
 
-        X_train = pd.read_json(paths_locales['X_train.json'])
-        X_test = pd.read_json(paths_locales['X_test.json'])
-        y_train = pd.read_json(paths_locales['y_train.json'], typ='series')
-        y_test = pd.read_json(paths_locales['y_test.json'], typ='series')
+        X_train = pd.read_json(paths['X_train.json'])
+        X_test  = pd.read_json(paths['X_test.json'])
+        y_train = pd.read_json(paths['y_train.json'], typ='series')
+        y_test  = pd.read_json(paths['y_test.json'], typ='series')
 
+        # Función objetivo usando sklearn LGBMClassifier
         def objective(trial):
             params = {
-                'objective': 'binary',
-                'metric': 'binary_logloss',
-                'boosting_type': 'gbdt',
                 'num_leaves': trial.suggest_int('num_leaves', 20, 100),
                 'max_depth': trial.suggest_int('max_depth', 3, 10),
                 'learning_rate': trial.suggest_float('learning_rate', 1e-3, 0.3, log=True),
                 'feature_fraction': trial.suggest_float('feature_fraction', 0.6, 1.0),
                 'bagging_fraction': trial.suggest_float('bagging_fraction', 0.6, 1.0),
                 'bagging_freq': trial.suggest_int('bagging_freq', 1, 7),
-                'min_data_in_leaf': trial.suggest_int('min_data_in_leaf', 10, 100),
+                'min_data_in_leaf': trial.suggest_int('min_data_in_leaf', 10, 100)
             }
-            lgb_train = lgb.Dataset(X_train, y_train)
-            model = lgb.train(params, lgb_train, num_boost_round=100, callbacks=[lgb.log_evaluation(0)])
-            y_pred = model.predict(X_test)
-            y_pred_binary = (y_pred > 0.5).astype(int)
-            return recall_score(y_test, y_pred_binary)
+            clf = LGBMClassifier(
+                **params,
+                objective='binary',
+                n_estimators=100,
+                random_state=42
+            )
+            clf.fit(X_train, y_train)
+            preds = clf.predict(X_test)
+            return recall_score(y_test, preds)
+                
 
         study = optuna.create_study(direction='maximize')
         study.optimize(objective, n_trials=10)
 
         best_params = study.best_params
-        best_params.update({'objective': 'binary', 'metric': 'binary_logloss', 'boosting_type': 'gbdt'})
+        # Añadimos parámetros fijos
+        best_params.update({
+            'objective': 'binary',
+            'n_estimators': 100,
+            'random_state': 42
+        })
 
-        model_final = lgb.train(best_params, lgb.Dataset(X_train, y_train), num_boost_round=100)
+        # Entrena el modelo final con sklearn wrapper
+        print(f"Mejores parámetros para LGBM Classifier: {best_params}")
+        model_final = LGBMClassifier(**best_params)
+        model_final.fit(X_train, y_train)
 
+        # Logging en MLflow
         mlflow.set_tracking_uri("http://mlflow:5000")
         mlflow.set_experiment("lightgbm_experiment")
         with mlflow.start_run(run_name="lightgbm_run"):
             mlflow.log_params(best_params)
             y_pred = model_final.predict(X_test)
-            recall = recall_score(y_test, (y_pred > 0.5).astype(int))
+            recall = recall_score(y_test, y_pred)
             mlflow.log_metric("recall", recall)
-            mlflow_lgb.log_model(model_final, artifact_path="lightgbm_model")
+            mlflow_sklearn.log_model(model_final, artifact_path="lightgbm_model")
 
+        # Guarda y sube a MinIO
         model_path = os.path.join(tmpdir, "lightgbm_model.pkl")
         with open(model_path, 'wb') as f:
             pickle.dump(model_final, f)
+        hook.load_file(filename=model_path,
+                       key="modelos/lightgbm_model.pkl",
+                       bucket_name=bucket_name,
+                       replace=True)
 
-        hook.load_file(filename=model_path, key="modelos/lightgbm_model.pkl", bucket_name=bucket_name, replace=True)
 
 def train_randomforest_optuna_minio(**kwargs):
     from sklearn.ensemble import RandomForestClassifier

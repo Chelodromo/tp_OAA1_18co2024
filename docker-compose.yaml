@@ -355,6 +355,10 @@ services:
     container_name: tp_oaa1_18co2024-streamlit_app
     ports:
       - "8501:8501"
+    volumes:
+      - ./streamlit_app:/app
+    environment:
+      - STREAMLIT_SERVER_RUN_ON_SAVE=true   # Auto–reload al guardar
     depends_on:
       - fastapi_app
     restart: always

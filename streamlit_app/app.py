@@ -13,7 +13,7 @@ if modo == "Manual":
     st.subheader("🚀 Ingresá los datos manualmente")
 
     TempOut = st.number_input("Temperatura Exterior (TempOut)", value=20.0)
-    DewPt_ = st.number_input("Punto de Rocío (DewPt.)", value=5.0)
+    DewPt = st.number_input("Punto de Rocío (DewPt)", value=5.0)
     WSpeed = st.number_input("Velocidad de Viento Media (WSpeed)", value=10.0)
     WHSpeed = st.number_input("Ráfaga de Viento (WHSpeed)", value=20.0)
     Bar = st.number_input("Presión Barométrica (Bar)", value=1013.0)
@@ -25,7 +25,7 @@ if modo == "Manual":
     if st.button("🔮 Predecir"):
         payload = {
             "TempOut": TempOut,
-            "DewPt_": DewPt_,
+            "DewPt": DewPt,
             "WSpeed": WSpeed,
             "WHSpeed": WHSpeed,
             "Bar": Bar,
