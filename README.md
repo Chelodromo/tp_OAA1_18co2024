@@ -15,6 +15,11 @@ Este proyecto orquesta un flujo completo de procesamiento de datos y entrenamien
 │   ├── Dockerfile           # Contenedor streamlit
 │   ├── requirements.txt           # requerimientos del contenedor
 │   ├── datos_actuales.ipynb       # Jupyter Notebook para testear la API
+├── plugins/task             # App de FastAPI para servir el modelo
+│   ├── entrenamiento_utils.py               # Funciones de entrenamiento
+│   ├── prediccion_utils.py           # Funciones de predeccion
+│   ├── procesamiento_utils.py           # Funciones de procesamiento
+│   ├── s3_utils.py           # Funciones de comunicacion con el bucker en Minio
 ├── streamlit_app_app/             # App de FastAPI para servir el modelo
 │   ├── app.py               # App principal
 │   ├── Dockerfile           # Contenedor streamlit
@@ -30,6 +35,9 @@ Este proyecto orquesta un flujo completo de procesamiento de datos y entrenamien
 
 ## 🔁 Flujo del DAG principal (`descargar_y_ver_dataset`)
   ![airflow](capturas/01_airflow.png)
+  ![airflow](capturas/02_airflow.png)
+  ![airflow](capturas/03_airflow.png)
+  ![airflow](capturas/03_airflow.png)
 
 1. **`probar_minio`**
    - Crea bucket `respaldo2` si no existe en MinIO.
