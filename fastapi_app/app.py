@@ -22,6 +22,7 @@ PREFIX           = "modelos/"
 
 # Variables globales
 model: Any = None
+model_timestamp: str = None
 expected_features: List[str] = []
 
 class PredictRequest(BaseModel):
@@ -36,7 +37,8 @@ class PredictRequest(BaseModel):
     Date_num:  float
 
 def load_latest_model():
-    global model
+    global model, model_timestamp, expected_features
+
     s3 = boto3.client(
         's3',
         endpoint_url=f'http://{MINIO_ENDPOINT}',
@@ -46,59 +48,62 @@ def load_latest_model():
     resp = s3.list_objects_v2(Bucket=BUCKET_NAME, Prefix=PREFIX)
     files = [o['Key'] for o in resp.get('Contents', []) if o['Key'].endswith('.pkl')]
     if not files:
-        raise RuntimeError("No se encontraron modelos en MinIO.")
+        print("⚠️ No se encontraron modelos en MinIO.")
+        return
+
     latest = sorted(files)[-1]
+    latest_ts = latest.split("/")[-1].split(".")[0]
+    if latest_ts == model_timestamp:
+        return  # Ya tenemos cargado el más reciente
+
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp_path = os.path.join(tmpdir, os.path.basename(latest))
         s3.download_file(BUCKET_NAME, latest, tmp_path)
         with open(tmp_path, 'rb') as f:
             model = pickle.load(f)
+            model_timestamp = latest_ts
 
-@app.on_event("startup")
-def startup_event():
-    load_latest_model()
-    # Capturamos los nombres de características que el modelo vio en fit()
-    global expected_features
+    # Capturamos las features
     if hasattr(model, 'feature_names_in_'):
         expected_features = list(model.feature_names_in_)
-    print(f"✅ Modelo cargado: {type(model)}")
+
+    print(f"✅ Modelo cargado: {latest}")
     print(f"🔧 Features esperadas: {expected_features}")
 
+@app.post("/reload")
+def reload_model():
+    load_latest_model()
+    return {"status": "🔁 Modelo recargado manualmente"}
+
+def lazy_load_model_if_needed():
+    if model is None:
+        load_latest_model()
+
 def align_and_order(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Renombra columnas que coinciden tras quitar/poner un punto final y
-    las reordena según expected_features.
-    """
     df2 = df.copy()
     for feat in expected_features:
         if feat not in df2.columns:
-            # buscar columna candidata con/ sin punto
             for col in df2.columns:
                 if col.rstrip('.') == feat.rstrip('.'):
                     df2.rename(columns={col: feat}, inplace=True)
                     break
-    # finalmente reordeno y devuelvo solo las esperadas
     return df2[expected_features]
 
 def predict_proba_model(m: BaseEstimator, df: pd.DataFrame) -> pd.Series:
-    """
-    Unifica inferencia: siempre predict_proba[:,1] de sklearn estimators.
-    """
     probs = m.predict_proba(df)
     return pd.Series(probs[:, 1], index=df.index)
 
 @app.post("/predict")
 def predict(data: PredictRequest):
-    # 1) Cargo en DataFrame
+    lazy_load_model_if_needed()
     df = pd.DataFrame([data.dict()])
-    # 2) Alineo nombres y orden
     df_aligned = align_and_order(df)
-    # 3) Infiero
     proba = predict_proba_model(model, df_aligned)
     return {"probability": round(float(proba.iloc[0]), 4)}
 
 @app.post("/predict_batch")
 def predict_batch(data: List[PredictRequest]):
+    lazy_load_model_if_needed()
     df = pd.DataFrame([d.dict() for d in data])
     df_aligned = align_and_order(df)
     proba = predict_proba_model(model, df_aligned)
@@ -108,4 +113,3 @@ def predict_batch(data: List[PredictRequest]):
         for date, p in zip(dates, proba)
     ]
     return {"predictions": results}
-

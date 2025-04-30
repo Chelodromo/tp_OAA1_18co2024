@@ -2,7 +2,7 @@
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from datetime import datetime
-
+import requests
 # Importamos las tareas desde plugins/tasks/
 from tasks.s3_utils import ejemplo_conexion_s3, descargar_dataset
 from tasks.procesamiento_utils import leer_y_loguear_minio, split_dataset_minio
@@ -14,6 +14,16 @@ from tasks.entrenamiento_utils import (
     train_knn_optuna_minio
 )
 from tasks.prediccion_utils import seleccionar_mejor_modelo, predict_datos_actuales, test_endpoints_predict
+
+def notificar_api_reload():
+    url = "http://fastapi_app:8000/reload"
+    try:
+        response = requests.post(url)
+        print(f"🔁 Respuesta de la API: {response.status_code} - {response.text}")
+    except Exception as e:
+        print(f"❌ Error al intentar recargar modelo: {e}")
+
+
 
 # Definimos el DAG
 with DAG(
@@ -83,9 +93,16 @@ with DAG(
         task_id="test_fastapi_endpoints",
         python_callable=test_endpoints_predict
     )
+    
+    recargar_modelo_api = PythonOperator(
+    task_id='recargar_modelo_api',
+    python_callable=notificar_api_reload,
+    dag=dag,
+    )
+
 
     # Definimos el flujo de dependencias
     conectar_minio >> descargar_dataset_task >> procesar_dataset_minio_task >> split_dataset_minio_task >> mlflow_test_run
     mlflow_test_run >> [train_lightgbm, train_randomforest, train_logisticregression, train_knn]
     [train_lightgbm, train_randomforest, train_logisticregression, train_knn] >> seleccionar_modelo
-    seleccionar_modelo >> predict_actual >> test_endpoints
+    seleccionar_modelo >> recargar_modelo_api >> predict_actual >> test_endpoints
