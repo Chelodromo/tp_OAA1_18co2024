@@ -71,6 +71,10 @@ def seleccionar_mejor_modelo(**kwargs):
         )
         print(f"🚀 Mejor modelo subido como {best_model_key}")
 
+# Leer las credenciales desde variables de entorno
+TCA_USER = os.getenv("TCA_SSRM_USER")
+TCA_PSWD = os.getenv("TCA_SSRM_PSWD")
+
 # Variables de entorno necesarias
 MINIO_ENDPOINT = os.getenv('MINIO_ENDPOINT', 'minio:9000')
 MINIO_ACCESS_KEY = os.getenv('MINIO_ACCESS_KEY', 'minio_admin')
@@ -98,13 +102,14 @@ def load_latest_model_from_minio():
             model = pickle.load(f)
     return model
 
+
+
 def predict_datos_actuales(**kwargs):
     """Obtiene datos actuales, carga el último modelo desde MinIO y predice."""
     # Autenticación contra la API externa
-    user = "ricardoq"
-    pswd = "eLxdr3FZ51DE"
+
     auth_url = 'https://tca-ssrm.com/api/auth'
-    payload = {'username': user, 'password': pswd}
+    payload = {'username': TCA_USER, 'password': TCA_PSWD}
 
     auth_response = requests.post(auth_url, data=payload)
     auth_response.raise_for_status()
@@ -144,16 +149,9 @@ def predict_datos_actuales(**kwargs):
     model = load_latest_model_from_minio()
 
     # Predicción
-    if 'lightgbm' in str(type(model)).lower():
-        print("🔵 Modelo detectado: LightGBM Booster")
-        proba = model.predict(df, raw_score=False)  # raw_score=False asegura que sean probabilidades
-    elif hasattr(model, 'predict_proba'):
-        print("🟢 Modelo detectado: Scikit-learn con predict_proba")
-        proba = model.predict_proba(df)[:, 1]
-    else:
-        print("🟠 Modelo detectado: predict simple")
-        proba = model.predict(df)
-
+    print("🟢 Modelo detectado: Scikit-learn con predict_proba")
+    proba = model.predict_proba(df)[:, 1]
+    
     for fecha, p in zip(fechas, proba):
         print(f"📅 Fecha: {fecha} - 🔮 Probabilidad de clase positiva: {p:.4f}")
 
@@ -162,10 +160,8 @@ def predict_datos_actuales(**kwargs):
 
 
 def test_endpoints_predict(**kwargs):
-    user = "ricardoq"
-    pswd = "eLxdr3FZ51DE"
     url_auth = 'https://tca-ssrm.com/api/auth'
-    payload = {'username': user, 'password': pswd}
+    payload = {'username': TCA_USER, 'password': TCA_PSWD}
 
     auth_response = requests.post(url_auth, data=payload)
     token = auth_response.json().get('token')

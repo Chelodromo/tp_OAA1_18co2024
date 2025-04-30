@@ -108,3 +108,4 @@ def predict_batch(data: List[PredictRequest]):
         for date, p in zip(dates, proba)
     ]
     return {"predictions": results}
+
