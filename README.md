@@ -37,7 +37,7 @@ Este proyecto orquesta un flujo completo de procesamiento de datos y entrenamien
   ![airflow](capturas/01_airflow.png)
   ![airflow](capturas/02_airflow.png)
   ![airflow](capturas/03_airflow.png)
-  ![airflow](capturas/03_airflow.png)
+  ![airflow](capturas/04_airflow.png)
 
 1. **`probar_minio`**
    - Crea bucket `respaldo2` si no existe en MinIO.
