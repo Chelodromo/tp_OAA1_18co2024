@@ -3,6 +3,17 @@
 
 Este proyecto orquesta un flujo completo de procesamiento de datos y entrenamiento de modelos de Machine Learning usando **Apache Airflow**, con almacenamiento de datos en **MinIO (S3 compatible)** y tracking de experimentos en **MLflow**. Todo está dockerizado y configurado para correr automáticamente.
 
+## Integrantes
+a1822 Cristian Patricio Salinas Talamilla
+
+a1812 Ezequiel Eduardo Maudet
+
+a1811 Marcelo Adrián Más Valdecantos
+
+a1806 Lucas Fajardo
+
+a1826 Sebastian Carreras
+
 ---
 
 ## 📦 Estructura del Proyecto
